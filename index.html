@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>SS Training Status</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+</head>
+<body>
+
+<!-- LOGIN -->
+<main id="loginView" class="login" hidden>
+  <form id="loginForm" class="card login-card">
+    <h1>SS Training Status</h1>
+    <p class="muted">Southern Software team sign-in</p>
+    <label>Email <input id="email" type="email" autocomplete="username" required></label>
+    <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+    <button type="submit" class="primary">Sign in</button>
+    <button type="button" id="forgotBtn" class="link">Forgot password?</button>
+    <p id="loginMsg" class="msg" role="status"></p>
+  </form>
+  <form id="resetForm" class="card login-card" hidden>
+    <h1>Set a new password</h1>
+    <label>New password <input id="newPassword" type="password" minlength="8" autocomplete="new-password" required></label>
+    <button type="submit" class="primary">Save password</button>
+    <p id="resetMsg" class="msg" role="status"></p>
+  </form>
+</main>
+
+<!-- APP CHOOSER / ACCESS GATE -->
+<main id="gateView" class="login" hidden>
+  <div class="card login-card gate">
+    <h1>Southern Software</h1>
+    <p class="muted small">Signed in as <span id="gateEmail"></span></p>
+    <p id="gateMsg"></p>
+    <div id="gateChoices" class="choices" hidden>
+      <button type="button" id="pickTraining" class="choice">
+        <strong>Training Status</strong>
+        <span class="muted small">Trainings by agency and trainer assignments</span>
+      </button>
+      <button type="button" id="pickConference" class="choice">
+        <strong>Conference Tracker</strong>
+        <span class="muted small">2026–2027 conferences, sponsorships and contacts</span>
+      </button>
+    </div>
+    <button type="button" id="gateSignOut" class="link">Sign out</button>
+  </div>
+</main>
+
+<!-- APP -->
+<div id="appView" hidden>
+  <header class="topbar">
+    <div class="brand">SS Training Status</div>
+    <nav class="tabs" role="tablist">
+      <button class="tab" data-view="trainings" role="tab">Trainings</button>
+      <button class="tab" data-view="trainers" role="tab">Trainers</button>
+    </nav>
+    <div class="who">
+      <span id="syncInfo" class="muted small"></span>
+      <span id="userEmail" class="small"></span>
+      <button id="switchApp" class="ghost small" hidden>Switch app</button>
+      <button id="signOut" class="ghost small">Sign out</button>
+    </div>
+  </header>
+
+  <!-- TRAININGS -->
+  <section id="trainingsView" class="page">
+    <div class="filters card">
+      <label>Date
+        <select id="fDate">
+          <option value="current">In progress &amp; upcoming</option>
+          <option value="all">All dates</option>
+          <option value="past">Past</option>
+          <option value="month">This month</option>
+          <option value="next30">Next 30 days</option>
+          <option value="range">Custom range…</option>
+          <option value="nodate">No date set</option>
+        </select>
+      </label>
+      <label class="range" hidden>From <input id="fFrom" type="date"></label>
+      <label class="range" hidden>To <input id="fTo" type="date"></label>
+      <label>State <select id="fState"></select></label>
+      <label>Trainer <select id="fTrainer"></select></label>
+      <label>Category <select id="fCategory"></select></label>
+      <label>Product <select id="fProduct"></select></label>
+      <label>Status <select id="fStatus"></select></label>
+      <label class="grow">Search <input id="fSearch" type="search" placeholder="Agency, notes, ID…"></label>
+      <button id="clearFilters" class="ghost">Clear</button>
+    </div>
+    <div class="summary"><span id="tSummary"></span>
+      <span class="spacer"></span>
+      <button id="expandAll" class="ghost small">Expand all</button>
+      <button id="collapseAll" class="ghost small">Collapse all</button>
+    </div>
+    <div id="agencyList"></div>
+  </section>
+
+  <!-- TRAINERS -->
+  <section id="trainersView" class="page" hidden>
+    <div class="summary">
+      <span id="rSummary"></span>
+      <span class="spacer"></span>
+      <label class="small"><input type="checkbox" id="showInactive"> Show inactive trainers</label>
+    </div>
+    <div id="trainerList" class="trainer-grid"></div>
+  </section>
+</div>
+
+<p id="fatal" class="fatal" hidden></p>
+<script src="app.js"></script>
+</body>
+</html>
