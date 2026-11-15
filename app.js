@@ -372,4 +372,47 @@
   }
   document.querySelectorAll('.tab').forEach(function (b) { b.addEventListener('click', function () { setView(b.dataset.view); }); });
   setView(location.hash === '#trainers' ? 'trainers' : 'trainings');
+// ---------- Face ID / passkey sign-in and Help (added 2026-11-15) ----------
+var canPasskey = !!(window.PublicKeyCredential && sb.auth.signInWithPasskey && sb.auth.registerPasskey);
+if (!canPasskey) { $('passkeyBtn').hidden = true; $('passkeySetup').hidden = true; }
+function pkCancelled(err) { return /abort|notallowed|cancel/i.test(String(err.code || '') + ' ' + err.message); }
+$('passkeyBtn').addEventListener('click', function () {
+var msg = $('loginMsg'); msg.className = 'msg'; msg.textContent = 'Waiting for Face ID or passkey…';
+sb.auth.signInWithPasskey().then(function (r) {
+if (r.error) {
+msg.textContent = pkCancelled(r.error) ? 'Face ID / passkey sign-in was cancelled.'
+: 'Face ID / passkey sign-in did not work on this device. Sign in with your password, then tap Set up Face ID.';
+return;
+}
+msg.textContent = '';
+}).catch(function (err) { msg.textContent = 'Face ID / passkey sign-in did not work: ' + (err.message || err); });
+});
+$('passkeySetup').addEventListener('click', function () {
+var m = $('pkMsg'); m.className = 'small'; m.textContent = 'Setting up…';
+sb.auth.registerPasskey().then(function (r) {
+if (r.error) {
+var t = String(r.error.code || '') + ' ' + r.error.message;
+m.className = 'small warn';
+m.textContent = pkCancelled(r.error) ? 'Set-up was cancelled.'
+: /disabled|not enabled|not_found|404/i.test(t) ? 'Face ID / passkey sign-in is not turned on for this app yet.'
+: 'Face ID / passkey could not be set up on this device.';
+return;
+}
+m.textContent = 'Done. Next time, tap "Sign in with Face ID or Passkey".';
+}).catch(function (err) { m.className = 'small warn'; m.textContent = 'Could not set up: ' + (err.message || err); });
+});
+
+sb.auth.onAuthStateChange(function (event) {
+if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') $('helpPage').hidden = true;
+});
+var helpReturn = null;
+function openHelp() {
+helpReturn = ['loginView', 'gateView', 'appView'].filter(function (id) { return !$(id).hidden; })[0] || 'loginView';
+$(helpReturn).hidden = true; $('helpPage').hidden = false; window.scrollTo(0, 0);
+}
+$('helpBtn').addEventListener('click', openHelp);
+$('helpLink').addEventListener('click', openHelp);
+$('helpBack').addEventListener('click', function () {
+$('helpPage').hidden = true; $(helpReturn || 'loginView').hidden = false; window.scrollTo(0, 0);
+});
 })();
