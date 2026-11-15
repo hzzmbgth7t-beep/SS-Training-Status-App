@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>try{var c=localStorage.getItem("ssts.theme")||"light";var n=c==="dark"||(c==="auto"&&window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",n?"dark":"light");}catch(e){document.documentElement.setAttribute("data-theme","light");}</script>
 <meta name="robots" content="noindex, nofollow">
 <title>SS Training Status</title>
   <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAwFBMVEWozeXa6d1lotH38ushdbnu5eZknOGa0aDyoKMAdHSVoWms2PL//7n07+kTn69iu2FjyG0AAP8Zc7kseLwie8EmhaNihLEbd786f8QWdcAzpWY8i8Udgc9YSH1xbpp/f/9/v79BjshhwoOtdIqLu7yUv+D/v7//xrsAAAD7+fAZdLv///8MbLcbesX+9+wCfr5DiMQ2hsRNl8/r6uYZdLuz1u0AVaoadLoA///I2tXN3OT52NDy7Ob18OkZdLyItdeJ1PwxAAAAQHRSTlP++P+kIh4W//8C/6EDbgr+/wFy/+P+/7waZv9U////AgS8/////wT/AP38Av7+1wYa//7+Uv0DkAH+/v9UUsv/dr0p+wAAAX5JREFUeNqV04eSgjAQBuBNaPau13tjE4qCCqIn7/9Wt4iR6Mwdc78zIMlHlCULbk2gHkjZ6UgpL8abvdA+X0E367AcKoH1TbGsgymnU1rAXN7cHQbAwDJG1yrvWbuumeyF7/N2IQCrGBaJ1DWvfN8XwouAxJMOELvus5sUs6IAK2g33XNAIrkXxyxWJOQFCEzhi5OIouilACzLYgXmQotHH4j5gnOe5xBXYLzwTghwIWjK6TvvTAEvRzgRwMzjiAMHccMUKH5XEfoOHmxbrca2ECVYHf5PPjkChIe3bcspBAa9CiBT4Ksxizb9VowZ01fIIgW2jcZs/Pg6YBuH2SfAhacAYowx59Pb/qAENMjUY1SVjCGaMqrkAXyI6jG1QBxclzXWC3X+LubHGtcAUQf8KmAERndHMQwFaMPsk9GSMkomidYX1jcZ2g/7Zaj3BW13+Um9ITt0tQvs/ZLOaRiG6x4d0rW2QtEZlm26zTD9tfWO2/6P3pTD4f+btyY/R16anamuucoAAAAASUVORK5CYII=">
@@ -25,6 +26,31 @@
 .help-body li { margin: 3px 0; }
 .login-card .ghost { width: 100%; }
 @media (max-width: 640px) { input, select { font-size: 16px; } }
+:root[data-theme="light"] { --bg: #f4f6f9; --surface: #fff; --text: #1b2430; --muted: #5f6b7a; --line: #dde3ea;
+  --accent: #1d4f91; --accent-2: #e8f0fb; --warn: #9a5b00; --danger: #b42318; --chip: #eef1f5; color-scheme: light; }
+:root[data-theme="dark"] { --bg: #141414; --surface: #1e1e1e; --text: #e9e9e6; --muted: #a6a6a1; --line: #2f2f2f;
+  --accent: #8ab4f8; --accent-2: #24303f; --warn: #f0b35a; --danger: #ff8a80; --chip: #2a2a2a; color-scheme: dark; }
+.topbar { background: #0F1C2E; color: #fff; border-bottom: 0; flex-wrap: nowrap; gap: 8px; padding: 8px 12px; }
+.hbtn { background: transparent; border: 1px solid rgba(255,255,255,.28); color: #fff; padding: 6px 10px; white-space: nowrap; }
+.hbtn.theme { width: 38px; padding: 6px 0; text-align: center; font-size: 16px; }
+.topbar .brand { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
+.topbar .brand .ver { font-size: 11px; font-weight: 400; opacity: .7; }
+.logo { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; opacity: .9; }
+.logo img { width: 30px; height: 30px; border-radius: 6px; background: #fff; }
+.menu { position: fixed; top: 56px; left: 8px; z-index: 20; width: min(340px, calc(100vw - 16px)); max-height: calc(100vh - 72px); overflow: auto;
+  background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.28); padding: 10px 12px 12px; }
+.menu-sec { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 10px 4px 6px; }
+.menu-pages { display: grid; gap: 2px; }
+.menu .tab, .menu .menu-item { display: block; width: 100%; text-align: left; padding: 9px 12px; border: 0; background: none; border-radius: 8px; color: var(--text); font-size: 15px; }
+.menu .tab:hover, .menu .menu-item:hover { background: var(--chip); }
+.menu .tab.active { background: var(--accent-2); color: var(--accent); font-weight: 600; }
+.seg { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.seg button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.menu-user { padding: 2px 4px; display: grid; gap: 2px; }
+.menu-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+.menu-btns button { font-size: 13px; }
+.pw-form { display: grid; gap: 6px; margin-top: 8px; }
+@media (max-width: 640px) { .logo-name { display: none; } }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.min.js"></script>
 <script src="config.js"></script>
@@ -75,22 +101,43 @@
 <!-- APP -->
 <div id="appView" hidden>
   <header class="topbar">
-    <div class="brand">SS Training Status</div>
-    <nav class="tabs" role="tablist">
-      <button class="tab" data-view="trainings" role="tab">Trainings</button>
-      <button class="tab" data-view="trainers" role="tab">Trainers</button>
+  <button id="menuBtn" class="hbtn" aria-expanded="false" aria-controls="menuPanel">&#9776; Menu</button>
+  <button id="themeBtn" class="hbtn theme" aria-label="Day / Night">&#9790;</button>
+  <div class="brand"><span>SS Training Status</span><span class="ver" id="pageName"></span></div>
+  <div class="logo"><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAwFBMVEWozeXa6d1lotH38ushdbnu5eZknOGa0aDyoKMAdHSVoWms2PL//7n07+kTn69iu2FjyG0AAP8Zc7kseLwie8EmhaNihLEbd786f8QWdcAzpWY8i8Udgc9YSH1xbpp/f/9/v79BjshhwoOtdIqLu7yUv+D/v7//xrsAAAD7+fAZdLv///8MbLcbesX+9+wCfr5DiMQ2hsRNl8/r6uYZdLuz1u0AVaoadLoA///I2tXN3OT52NDy7Ob18OkZdLyItdeJ1PwxAAAAQHRSTlP++P+kIh4W//8C/6EDbgr+/wFy/+P+/7waZv9U////AgS8/////wT/AP38Av7+1wYa//7+Uv0DkAH+/v9UUsv/dr0p+wAAAX5JREFUeNqV04eSgjAQBuBNaPau13tjE4qCCqIn7/9Wt4iR6Mwdc78zIMlHlCULbk2gHkjZ6UgpL8abvdA+X0E367AcKoH1TbGsgymnU1rAXN7cHQbAwDJG1yrvWbuumeyF7/N2IQCrGBaJ1DWvfN8XwouAxJMOELvus5sUs6IAK2g33XNAIrkXxyxWJOQFCEzhi5OIouilACzLYgXmQotHH4j5gnOe5xBXYLzwTghwIWjK6TvvTAEvRzgRwMzjiAMHccMUKH5XEfoOHmxbrca2ECVYHf5PPjkChIe3bcspBAa9CiBT4Ksxizb9VowZ01fIIgW2jcZs/Pg6YBuH2SfAhacAYowx59Pb/qAENMjUY1SVjCGaMqrkAXyI6jG1QBxclzXWC3X+LubHGtcAUQf8KmAERndHMQwFaMPsk9GSMkomidYX1jcZ2g/7Zaj3BW13+Um9ITt0tQvs/ZLOaRiG6x4d0rW2QtEZlm26zTD9tfWO2/6P3pTD4f+btyY/R16anamuucoAAAAASUVORK5CYII=" alt=""><span class="logo-name">Southern Software</span></div>
+</header>
+<div id="menuPanel" class="menu" hidden>
+  <div class="menu-sec">Pages</div>
+  <nav class="menu-pages" role="tablist">
+    <button class="tab" data-view="trainings" role="tab">Trainings</button>
+    <button class="tab" data-view="trainers" role="tab">Trainers</button>
     <button class="tab" data-view="users" role="tab" id="usersTab" hidden>Users</button>
-    </nav>
-    <div class="who">
-      <span id="syncInfo" class="muted small"></span>
-      <span id="userEmail" class="small"></span>
-      <button id="switchApp" class="ghost small" hidden>Switch app</button>
-      <span id="pkMsg" class="small"></span>
-      <button id="passkeySetup" class="ghost small">Set up Face ID</button>
-      <button id="helpBtn" class="ghost small">Help</button>
-      <button id="signOut" class="ghost small">Sign out</button>
-    </div>
-  </header>
+    <button type="button" id="helpBtn" class="menu-item">Help</button>
+  </nav>
+  <div class="menu-sec">Day / Night</div>
+  <div class="seg">
+    <button type="button" data-theme-choice="light">Day</button>
+    <button type="button" data-theme-choice="dark">Night</button>
+    <button type="button" data-theme-choice="auto">Automatic</button>
+  </div>
+  <div class="menu-sec">User</div>
+  <div class="menu-user">
+    <div id="userEmail"></div>
+    <div id="syncInfo" class="muted small"></div>
+  </div>
+  <div class="menu-btns">
+    <button type="button" id="passkeySetup">Set Up Face ID / Passkey</button>
+    <button type="button" id="changePwBtn">Change Password</button>
+    <button type="button" id="switchApp" hidden>Switch App</button>
+    <button type="button" id="signOut">Sign Out</button>
+  </div>
+  <p id="pkMsg" class="small"></p>
+  <form id="pwForm" class="pw-form" hidden>
+    <input id="pwNew" type="password" minlength="8" autocomplete="new-password" placeholder="New password (8+ characters)" required>
+    <button type="submit" class="primary">Save</button>
+    <p id="pwMsg" class="msg" role="status"></p>
+  </form>
+</div>
 
   <!-- TRAININGS -->
   <section id="trainingsView" class="page">
@@ -167,13 +214,13 @@
     <p>Open <strong>https://hzzmbgth7t-beep.github.io/SS-Training-Status-App/</strong> in Safari (iPhone/iPad) or Chrome (Android or computer).</p>
     <p>Sign in with your @southernsoftware.com email and your password. No account yet? Ask Ronnie Brigman.</p>
     <p>Forgot your password? Type your email, tap <em>Forgot password?</em>, and use the link in the email to set a new one.</p>
-    <p>If your account also has the Conference Tracker, you choose which app to open after signing in. <em>Switch app</em> at the top takes you back to that choice.</p>
+    <p>If your account also has the Conference Tracker, you choose which app to open after signing in. <em>Switch App</em> in the Menu takes you back to that choice.</p>
   </div></details>
 
   <details class="card"><summary>2. Set up Face ID (or fingerprint / passkey)</summary><div class="help-body">
     <ol>
       <li>Sign in once with your email and password.</li>
-      <li>Tap <em>Set up Face ID</em> at the top of the app.</li>
+      <li>Open the <em>Menu</em> and tap <em>Set Up Face ID / Passkey</em>.</li>
       <li>Follow your phone's prompt (Face ID, Touch ID, fingerprint or device PIN).</li>
       <li>From then on, tap <em>Sign in with Face ID or Passkey</em> on the sign-in screen. No password needed.</li>
     </ol>
@@ -214,14 +261,12 @@
     <p>The top bar shows when the data was last copied from the master sheet ("Synced from master sheet ..."). Updates happen automatically during the day.</p>
   </div></details>
 
-  <details class="card"><summary>Top bar</summary><div class="help-body">
+  <details class="card"><summary>Top bar and Menu</summary><div class="help-body">
+    <p>The dark bar at the top holds the <strong>Menu</strong> button, the <strong>sun / moon</strong> (Day / Night) button, the app name with the page you are on, and the logo.</p>
     <ul>
-      <li><strong>Trainings / Trainers</strong>: switch between the two pages.</li>
-      <li><strong>Help</strong>: this page.</li>
-      <li><strong>Users</strong>: only you (the owner) see this; add or remove people.</li>
-      <li><strong>Set up Face ID</strong>: adds Face ID or passkey sign-in for this device.</li>
-      <li><strong>Switch app</strong>: only shown if you also have the Conference Tracker.</li>
-      <li><strong>Sign out</strong>: signs you out on this device.</li>
+      <li><strong>Menu, Pages</strong>: Trainings, Trainers, Users (only you, the owner) and Help.</li>
+      <li><strong>Menu, Day / Night</strong>: Day (light), Night (very dark grey with soft white text) or Automatic (follows your phone or computer). The sun / moon button switches between Day and Night. Your choice is remembered on this device, so even the sign-in screen opens that way.</li>
+      <li><strong>Menu, User</strong>: your email and when the data was last synced, plus Set Up Face ID / Passkey, Change Password, Switch App (only if you also have the Conference Tracker) and Sign Out.</li>
     </ul>
   </div></details>
 
@@ -251,7 +296,7 @@
   </div></details>
 
   <details class="card"><summary>Users page (Ronnie only)</summary><div class="help-body">
-    <p>Only the account owner sees the <em>Users</em> tab.</p>
+    <p>Only the account owner sees <em>Users</em> in the Menu.</p>
     <ul>
       <li><strong>Give access</strong>: enter the name and @southernsoftware.com email, choose how they get in, and tap <em>Give access</em>. <em>Email them an invite link</em> sends an email to set a password. <em>Make a temporary password</em> shows a password once for you to pass on; they can change it with <em>Forgot password?</em>. If they already have an account (for example from the Conference Tracker), no email is sent; they sign in as usual.</li>
       <li><strong>Remove access</strong>: takes away Training Status only. Their account and any Conference Tracker access stay as they are.</li>
@@ -263,7 +308,7 @@
     <ul>
       <li><strong>A training is missing or wrong</strong>: tell Ronnie. It is corrected in the tracker sheet and shows here after the next sync.</li>
       <li><strong>"Could not load data"</strong>: check your connection and reload.</li>
-      <li><strong>Face ID did not work</strong>: sign in with your password, then tap <em>Set up Face ID</em> again.</li>
+      <li><strong>Face ID did not work</strong>: sign in with your password, then open the Menu and tap <em>Set Up Face ID / Passkey</em> again.</li>
       <li><strong>"Your account does not have access"</strong>: ask Ronnie to add you.</li>
     </ul>
   </div></details>
