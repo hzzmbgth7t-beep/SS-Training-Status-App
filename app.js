@@ -327,41 +327,49 @@ if (v.pm && !pmList(t).some(function (n) { return lc(n) === lc(v.pm); })) return
   $('expandAll').addEventListener('click', function () { document.querySelectorAll('details.agency').forEach(function (d) { d.open = true; }); });
   $('collapseAll').addEventListener('click', function () { document.querySelectorAll('details.agency').forEach(function (d) { d.open = false; }); });
 
-  function renderTrainers() {
-    var today = todayIso(), showInactive = $('showInactive').checked;
-    var byName = {};
-    state.trainers.forEach(function (r) { byName[r.name.toLowerCase()] = { info: r, items: [] }; });
-    state.trainings.forEach(function (t) {
-      if (!isCurrent(t, today)) return;
-      (t.trainer_list || []).forEach(function (n) {
-        var k = n.toLowerCase();
-        if (!byName[k]) byName[k] = { info: { name: n, active: true, missing: true }, items: [] };
-        byName[k].items.push(t);
-      });
-    });
-    var people = Object.keys(byName).map(function (k) { return byName[k]; })
-      .filter(function (p) { return showInactive || p.info.active || p.items.length; })
-      .sort(function (a, b) { return b.items.length - a.items.length || a.info.name.localeCompare(b.info.name); });
-    var busy = people.filter(function (p) { return p.items.length; }).length;
-    $('rSummary').textContent = people.length + ' trainers · ' + busy + ' with current assignments';
-    if (!people.length) { $('trainerList').innerHTML = '<div class="empty card">No trainers yet — the master sheet has not been synced.</div>'; return; }
-    $('trainerList').innerHTML = people.map(function (p) {
-      var r = p.info;
-      var items = p.items.sort(function (a, b) { return (a.start_date || '9999').localeCompare(b.start_date || '9999'); });
-      return '<div class="card trainer"><h3>' + esc(r.name) +
-        '<span class="chip">' + items.length + ' current</span>' +
-        (r.active === false ? '<span class="chip">Inactive</span>' : '') + '</h3>' +
-        '<div class="meta">' + [r.email ? '<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + '</a>' : '', esc(r.products)].filter(String).join(' · ') +
-        (r.missing ? '<div class="warn">Not on the Trainers tab of the master sheet</div>' : '') + '</div>' +
-        (items.length ? '<ul>' + items.map(function (t) {
-          return '<li><div class="line1"><strong>' + esc(t.agency_std || t.agency) + '</strong><span class="small">' + fmtRange(t) +
-            (inProgress(t, today) ? ' <span class="chip badge-now">Now</span>' : '') + '</span></div>' +
-            '<div class="line2">' + [t.category ? '<span class="chip cat ' + catClass(t.category) + '">' + esc(t.category) + '</span>' : '',
-              esc(t.product), esc(t.state), esc(t.delivery), esc(t.status)].filter(String).join(' · ') + '</div></li>';
-        }).join('') + '</ul>' : '<div class="muted small">No current assignments.</div>') + '</div>';
-    }).join('');
-  }
+// Trainers page: one collapsible card per trainer (Ronnie 11/15).
+function renderTrainers() {
+var today = todayIso(), showInactive = $('showInactive').checked;
+var byName = {};
+state.trainers.forEach(function (r) { byName[r.name.toLowerCase()] = { info: r, items: [] }; });
+state.trainings.forEach(function (t) {
+if (!isCurrent(t, today)) return;
+(t.trainer_list || []).forEach(function (n) {
+var k = n.toLowerCase();
+if (!byName[k]) byName[k] = { info: { name: n, active: true, missing: true }, items: [] };
+byName[k].items.push(t);
+});
+});
+var people = Object.keys(byName).map(function (k) { return byName[k]; })
+.filter(function (p) { return showInactive || p.info.active || p.items.length; })
+.sort(function (a, b) { return b.items.length - a.items.length || a.info.name.localeCompare(b.info.name); });
+var busy = people.filter(function (p) { return p.items.length; }).length;
+$('rSummary').textContent = people.length + ' trainers · ' + busy + ' with current assignments';
+if (!people.length) { $('trainerList').innerHTML = '<div class="empty card">No trainers yet — the master sheet has not been synced.</div>'; return; }
+$('trainerList').innerHTML = people.map(function (p) {
+var r = p.info;
+var items = p.items.sort(function (a, b) { return (a.start_date || '9999').localeCompare(b.start_date || '9999'); });
+var now = items.filter(function (t) { return inProgress(t, today); }).length;
+return '<details class="agency card trainer"><summary>' +
+'<span class="agency-name">' + esc(r.name) + '</span>' +
+'<span class="chip">' + items.length + ' current</span>' +
+(now ? '<span class="chip badge-now">' + now + ' now</span>' : '') +
+(r.active === false ? '<span class="chip">Inactive</span>' : '') +
+(r.missing ? '<span class="warn">Not on the Trainers tab</span>' : '') +
+'</summary><div class="trainer-body">' +
+'<div class="meta">' + [r.email ? '<a href="mailto:' + esc(r.email) + '">' + esc(r.email) + '</a>' : '', esc(r.products)].filter(String).join(' · ') +
+(r.missing ? '<div class="warn">Named on a training but not on the Trainers tab of the master sheet</div>' : '') + '</div>' +
+(items.length ? '<ul>' + items.map(function (t) {
+return '<li><div class="line1"><strong>' + esc(t.agency_std || t.agency) + '</strong><span class="small">' + fmtRange(t) +
+(inProgress(t, today) ? ' <span class="chip badge-now">Now</span>' : '') + '</span></div>' +
+'<div class="line2">' + [t.category ? '<span class="chip cat ' + catClass(t.category) + '">' + esc(t.category) + '</span>' : '',
+esc(t.product), esc(t.state), esc(t.delivery), esc(t.status)].filter(String).join(' · ') + '</div></li>';
+}).join('') + '</ul>' : '<div class="muted small">No current assignments.</div>') + '</div></details>';
+}).join('');
+}
   $('showInactive').addEventListener('change', renderTrainers);
+  $('trExpand').addEventListener('click', function () { document.querySelectorAll('details.trainer').forEach(function (d) { d.open = true; }); });
+  $('trCollapse').addEventListener('click', function () { document.querySelectorAll('details.trainer').forEach(function (d) { d.open = false; }); });
 
   // ---------- tabs ----------
   function setView(v) {
@@ -419,17 +427,8 @@ $('helpLink').addEventListener('click', openHelp);
 $('helpBack').addEventListener('click', function () {
 $('helpPage').hidden = true; $(helpReturn || 'loginView').hidden = false; window.scrollTo(0, 0);
 });
-// ---------- Users page: owner adds / removes Training Status access (added 2026-11-15) ----------
-function usersCall(body) {
-return sb.functions.invoke('ts-users', { body: body }).then(function (r) {
-if (!r.error) return r.data;
-var ctx = r.error.context;
-if (ctx && typeof ctx.json === 'function') {
-return ctx.json().then(function (j) { throw new Error((j && j.error) || r.error.message); }, function () { throw r.error; });
-}
-throw r.error;
-});
-}
+// ---------- Users: managed in the Conference Tracker (Ronnie 11/15) ----------
+// The owner's Users page is now a link to the shared Users page in the Conference Tracker (Menu > Admin > Users).
 function setOwner(on) {
 $('usersTab').hidden = !on;
 if (!on) { $('usersView').hidden = true; if (state.view === 'users') setView('trainings'); }
@@ -441,64 +440,9 @@ sb.rpc('is_owner_user').then(function (r) { setOwner(!r.error && r.data === true
 }
 });
 document.querySelectorAll('.tab').forEach(function (b) {
-b.addEventListener('click', function () {
-var on = b.dataset.view === 'users';
-$('usersView').hidden = !on;
-if (on) loadUsers();
+b.addEventListener('click', function () { $('usersView').hidden = b.dataset.view !== 'users'; });
 });
-});
-function fmtSeen(u) {
-if (u.inactive) return '<span class="warn">Account turned off</span>';
-if (!u.has_account) return '<span class="muted">No account yet</span>';
-if (!u.last_sign_in_at) return '<span class="muted">Never signed in</span>';
-return 'Last sign-in ' + new Date(u.last_sign_in_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-function loadUsers() {
-$('userList').innerHTML = '<div class="empty">Loading…</div>';
-usersCall({ action: 'list' }).then(function (d) {
-var list = (d.users || []).sort(function (a, b) { return (b.training - a.training) || String(a.name).localeCompare(String(b.name)); });
-var n = list.filter(function (u) { return u.training; }).length;
-$('uSummary').textContent = n + ' with Training Status access · ' + list.length + ' on the access list';
-$('userList').innerHTML = '<div class="table-wrap card"><table><thead><tr><th>Name</th><th>Email</th><th>Training Status</th><th>Conference Tracker</th><th>Account</th><th></th></tr></thead><tbody>' +
-list.map(function (u) {
-var btn = u.is_me ? '<span class="muted small">You</span>'
-: u.training ? '<button class="ghost small" data-revoke="' + esc(u.email) + '">Remove access</button>'
-: '<button class="ghost small" data-grant="' + esc(u.email) + '" data-name="' + esc(u.name) + '">Give access</button>';
-return '<tr><td>' + esc(u.name) + '</td><td>' + esc(u.email) + '</td><td>' + (u.training ? 'Yes' : '<span class="muted">No</span>') +
-'</td><td>' + (u.conference ? 'Yes' : '<span class="muted">No</span>') + '</td><td class="small">' + fmtSeen(u) + '</td><td>' + btn + '</td></tr>';
-}).join('') + '</tbody></table></div>';
-}).catch(function (err) {
-$('userList').innerHTML = '<div class="empty card">Could not load users: ' + esc(err.message || err) + '</div>';
-});
-}
-function grant(email, name, method) {
-var msg = $('uMsg'); msg.className = 'msg'; msg.textContent = 'Working…'; $('uPassBox').hidden = true;
-return usersCall({ action: 'grant', email: email, name: name, method: method }).then(function (d) {
-msg.className = 'msg ok';
-if (d.created === 'invite') msg.textContent = 'Done. ' + d.email + ' was emailed an invite link to set a password and sign in.';
-else if (d.created === 'password') msg.textContent = 'Done. Account made for ' + d.email + '. Give them the temporary password below; they can change it with Forgot password.';
-else msg.textContent = 'Done. ' + d.email + ' already had an account; they can sign in with their usual password or Face ID.';
-if (d.password) { $('uPass').textContent = d.password; $('uPassBox').hidden = false; }
-$('uEmail').value = ''; $('uName').value = '';
-loadUsers();
-}).catch(function (err) { msg.className = 'msg'; msg.textContent = 'Not done: ' + (err.message || err); });
-}
-$('userForm').addEventListener('submit', function (e) {
-e.preventDefault();
-grant($('uEmail').value.trim().toLowerCase(), $('uName').value.trim(), $('uMethod').value);
-});
-$('userList').addEventListener('click', function (e) {
-var b = e.target.closest('button'); if (!b) return;
-if (b.dataset.revoke) {
-if (!confirm('Remove Training Status access for ' + b.dataset.revoke + '? Their account and any Conference Tracker access stay as they are.')) return;
-var msg = $('uMsg'); msg.className = 'msg'; msg.textContent = 'Working…';
-usersCall({ action: 'revoke', email: b.dataset.revoke }).then(function () {
-msg.className = 'msg ok'; msg.textContent = 'Access removed for ' + b.dataset.revoke + '.'; loadUsers();
-}).catch(function (err) { msg.textContent = 'Not done: ' + (err.message || err); });
-} else if (b.dataset.grant) {
-grant(b.dataset.grant, b.dataset.name, 'invite');
-}
-});
+
 // ---------- Menu button and Day / Night (added 2026-11-15) ----------
 var THEME_KEY = 'ssts.theme';
 var darkMq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
