@@ -13,8 +13,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SS Training">
-<link rel="stylesheet" href="styles.css?v=2026-11-15e">
+<link rel="stylesheet" href="styles.css?v=2026-11-15f">
 <style>
+details.trainer{padding:0}
+.trainer-body{padding:0 14px 12px}
+.trainer-body .meta{margin-top:0}
+
 .help { max-width: 820px; }
 .help-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .help h1 { margin: 8px 0; font-size: 22px; }
@@ -182,8 +186,10 @@
       <span id="rSummary"></span>
       <span class="spacer"></span>
       <label class="small"><input type="checkbox" id="showInactive"> Show inactive trainers</label>
+      <button id="trExpand" class="ghost small">Expand all</button>
+      <button id="trCollapse" class="ghost small">Collapse all</button>
     </div>
-    <div id="trainerList" class="trainer-grid"></div>
+    <div id="trainerList"></div>
   </section>
 <!-- ACTIVE PM PROJECTS -->
 <section id="pmView" class="page" hidden>
@@ -200,21 +206,12 @@
 
 <!-- USERS (owner only) -->
 <section id="usersView" class="page" hidden>
-  <form id="userForm" class="filters card">
-    <label>Name <input id="uName" type="text" required placeholder="First Last"></label>
-    <label class="grow">Email <input id="uEmail" type="email" required placeholder="name@southernsoftware.com"></label>
-    <label>How they get in
-      <select id="uMethod">
-        <option value="invite">Email them an invite link</option>
-        <option value="password">Make a temporary password</option>
-      </select>
-    </label>
-    <button type="submit" class="primary">Give access</button>
-  </form>
-  <p id="uMsg" class="msg" role="status"></p>
-  <div id="uPassBox" class="card" style="padding:12px;margin:8px 0" hidden>Temporary password (shown once): <strong id="uPass" style="font-family:monospace;font-size:16px"></strong></div>
-  <div class="summary"><span id="uSummary"></span></div>
-  <div id="userList"></div>
+  <div class="card" style="padding:16px;max-width:640px">
+    <h2 style="margin-top:0">Users are managed in the Conference Tracker</h2>
+    <p>One Users page now gives or removes access to both apps (Training Status and Conference Tracker). Only you, the owner, can use it.</p>
+    <p><a class="primary" style="display:inline-block;padding:10px 16px;border-radius:8px;text-decoration:none" href="https://hzzmbgth7t-beep.github.io/SS-Conference-Tracker-App/" target="_blank" rel="noopener">Open the Conference Tracker</a></p>
+    <p class="muted small">There: sign in, open the Menu, choose Admin, then Users. Tick Training Status for anyone who should use this app.</p>
+  </div>
 </section>
 </div>
 
@@ -321,16 +318,11 @@
   </div></details>
 
   <details class="card"><summary>Trainers page</summary><div class="help-body">
-    <p>Each trainer's current assignments (not finished yet), busiest first, with their email and products. Tick <em>Show inactive trainers</em> to include trainers marked inactive. A trainer with a yellow note is named on a training but missing from the master sheet's Trainers tab; tell Ronnie.</p>
+    <p>Each trainer's current assignments (not finished yet), busiest first. Tap a trainer to open or close their list (email, products and assignments); <em>Expand all</em> and <em>Collapse all</em> open or close every trainer. Tick <em>Show inactive trainers</em> to include trainers marked inactive. A trainer with a yellow note is named on a training but missing from the master sheet's Trainers tab; tell Ronnie.</p>
   </div></details>
 
   <details class="card"><summary>Users page (Ronnie only)</summary><div class="help-body">
-    <p>Only the account owner sees <em>Users</em> in the Menu.</p>
-    <ul>
-      <li><strong>Give access</strong>: enter the name and @southernsoftware.com email, choose how they get in, and tap <em>Give access</em>. <em>Email them an invite link</em> sends an email to set a password. <em>Make a temporary password</em> shows a password once for you to pass on; they can change it with <em>Forgot password?</em>. If they already have an account (for example from the Conference Tracker), no email is sent; they sign in as usual.</li>
-      <li><strong>Remove access</strong>: takes away Training Status only. Their account and any Conference Tracker access stay as they are.</li>
-      <li>The list shows everyone on the shared access list, whether they have Training Status and Conference Tracker access, and when they last signed in.</li>
-    </ul>
+    <p>Only the account owner sees <em>Users</em> in the Menu. Access to both apps is now managed on one Users page in the Conference Tracker: <em>Users</em> here opens a link to it. There, open the Menu, choose <em>Admin</em>, then <em>Users</em>. Tick <em>Training Status</em> to give someone this app; untick it to remove it. Unticking never deletes the account.</p>
   </div></details>
 
   <details class="card"><summary>Something looks wrong</summary><div class="help-body">
@@ -345,6 +337,6 @@
 </main>
 
 <p id="fatal" class="fatal" hidden></p>
-<script src="app.js?v=2026-11-15e"></script>
+<script src="app.js?v=2026-11-15f"></script>
 </body>
 </html>
