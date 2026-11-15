@@ -543,4 +543,89 @@ if (r.error) { m.textContent = 'Not changed: ' + r.error.message; return; }
 m.className = 'msg ok'; m.textContent = 'Password changed.'; $('pwNew').value = '';
 });
 });
+// ---------- Active PM Projects page (added 2026-11-15) ----------
+// Active = status not Complete/Completed/Cancelled/Closed/Done/Not Included and not On Hold (Ronnie 11/9, 1B). Dates ignored.
+PAGE_NAMES.pm = 'Active PM Projects';
+var pmState = { rows: [], loaded: false };
+var PM_HIDE = /^(completed?|cancell?ed|closed|done|not included)$|hold/i;
+function pmActive(r) { return !PM_HIDE.test(String(r.project_status || '').trim()); }
+function loadPm() {
+$('pmList').innerHTML = '<div class="empty">Loading…</div>';
+sb.from('ts_pm_projects').select('*').order('project').then(function (r) {
+if (r.error) throw r.error;
+pmState.rows = r.data || []; pmState.loaded = true;
+var act = pmState.rows.filter(pmActive);
+fillSelect('pmState', 'states', uniq(act.map(function (x) { return x.state; })));
+fillSelect('pmStatus', 'statuses', uniq(act.map(function (x) { return x.project_status; })));
+fillSelect('pmPM', 'PMs', uniq(act.map(function (x) { return x.project_manager; })));
+renderPm();
+}).catch(function (err) {
+$('pmList').innerHTML = '<div class="empty card">Could not load projects: ' + esc(err.message || err) + '</div>';
+});
+}
+function pmField(label, v) {
+v = String(v == null ? '' : v).trim();
+if (!v || /^other or na$/i.test(v)) return '';
+return '<div class="pm-f"><span class="muted small">' + esc(label) + '</span><div>' + esc(v) + '</div></div>';
+}
+function renderPm() {
+var lc = function (x) { return String(x || '').toLowerCase(); };
+var st = $('pmState').value, ss = $('pmStatus').value, pm = $('pmPM').value, q = $('pmSearch').value.trim().toLowerCase();
+var act = pmState.rows.filter(pmActive);
+var list = act.filter(function (r) {
+if (st && lc(r.state) !== lc(st)) return false;
+if (ss && lc(r.project_status) !== lc(ss)) return false;
+if (pm && lc(r.project_manager) !== lc(pm)) return false;
+if (q && [r.project, r.state, r.deliverables, r.project_status, r.project_manager, r.account_manager, r.it_staff, r.cad_trainer, r.rms_trainer, r.jms_trainer, r.mdis_trainer, r.hardware, r.notes].join(' ').toLowerCase().indexOf(q) < 0) return false;
+return true;
+}).sort(function (a, b) { return String(a.project).localeCompare(String(b.project)); });
+var hidden = pmState.rows.length - act.length;
+$('pmSummary').textContent = list.length + ' project' + (list.length === 1 ? '' : 's') + ' (of ' + act.length + ' active' +
+(hidden ? '; ' + hidden + ' on hold or finished not shown' : '') + ')';
+if (!list.length) { $('pmList').innerHTML = '<div class="empty card">' + (pmState.rows.length ? 'No projects match these filters.' : 'No projects yet - the master sheet has not been synced.') + '</div>'; return; }
+$('pmList').innerHTML = list.map(function (r) {
+return '<details class="agency card"><summary>' +
+'<span class="agency-name">' + esc(r.project) + '</span>' +
+(r.state ? '<span class="chip">' + esc(r.state) + '</span>' : '') +
+(r.project_status ? '<span class="chip badge-now">' + esc(r.project_status) + '</span>' : '') +
+'<span class="muted small">PM: ' + esc(r.project_manager || 'not set') + '</span>' +
+'</summary><div class="pm-body">' +
+pmField('Deliverables', r.deliverables) + pmField('Date received', r.date_received ? fmtDate(r.date_received) : '') +
+pmField('Account manager', r.account_manager) + pmField('IT staff', r.it_staff) +
+pmField('CAD trainer', r.cad_trainer) + pmField('RMS trainer', r.rms_trainer) + pmField('JMS trainer', r.jms_trainer) +
+pmField('MDIS trainer', r.mdis_trainer) + pmField('Hardware', r.hardware) +
+'<div class="pm-f pm-notes"><span class="muted small">Notes</span><div>' + (esc(r.notes) || '<span class="muted">None</span>') + '</div></div>' +
+'<div class="pm-f pm-notes muted small">Board last updated: ' + esc(r.last_updated_report || 'not shown') + '</div>' +
+'</div></details>';
+}).join('');
+}
+['pmState', 'pmStatus', 'pmPM'].forEach(function (id) { $(id).addEventListener('change', renderPm); });
+$('pmSearch').addEventListener('input', renderPm);
+$('pmClear').addEventListener('click', function () { ['pmState', 'pmStatus', 'pmPM', 'pmSearch'].forEach(function (id) { $(id).value = ''; }); renderPm(); });
+document.querySelectorAll('.tab').forEach(function (b) {
+b.addEventListener('click', function () {
+var on = b.dataset.view === 'pm';
+$('pmView').hidden = !on;
+if (on) loadPm();
+});
+});
+
+// ---------- Day / Night saved with the account (added 2026-11-15) ----------
+var themeUser = null;
+function saveTheme() {
+if (!themeUser) return;
+sb.from('ts_user_settings').upsert({ user_id: themeUser, theme: themeChoice(), updated_at: new Date().toISOString() }).then(function () { /* best effort */ });
+}
+$('themeBtn').addEventListener('click', saveTheme);
+document.querySelectorAll('[data-theme-choice]').forEach(function (b) { b.addEventListener('click', saveTheme); });
+sb.auth.onAuthStateChange(function (event, session) {
+if (!session) { themeUser = null; return; }
+if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return;
+themeUser = session.user.id;
+sb.from('ts_user_settings').select('theme').eq('user_id', themeUser).maybeSingle().then(function (r) {
+if (r.error) return;
+if (r.data && r.data.theme) { if (r.data.theme !== themeChoice()) applyTheme(r.data.theme); }
+else saveTheme();
+});
+});
 })();
