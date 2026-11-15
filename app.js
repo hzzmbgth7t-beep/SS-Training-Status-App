@@ -182,7 +182,8 @@
   }
 
   // ---------- filters ----------
-  var F = ['fDate', 'fFrom', 'fTo', 'fState', 'fTrainer', 'fCategory', 'fProduct', 'fStatus', 'fSearch'];
+  var F = ['fDate', 'fFrom', 'fTo', 'fState', 'fTrainer', 'fCategory', 'fProduct', 'fStatus', 'fPM', 'fSearch'];
+function pmList(t) { return String(t.pm || '').split(/[,;\/]| and /i).map(function (s) { return s.trim(); }).filter(String); }
   function fillSelect(id, label, values) {
     var el = $(id), cur = el.value;
     el.innerHTML = '<option value="">All ' + esc(label) + '</option>' +
@@ -200,6 +201,7 @@
       .concat(T.map(function (t) { return t.category; }))));
     fillSelect('fProduct', 'products', uniq(T.map(function (t) { return t.product; })));
     fillSelect('fStatus', 'statuses', uniq(T.map(function (t) { return t.status; })));
+fillSelect('fPM', 'PMs', uniq([].concat.apply([], T.map(pmList))));
   }
   function saveFilters() {
     var o = {}; F.forEach(function (id) { o[id] = $(id).value; });
@@ -251,7 +253,7 @@
   function filtered() {
     var today = todayIso(), v = {
       date: $('fDate').value || 'current', state: $('fState').value, trainer: $('fTrainer').value,
-      cat: $('fCategory').value, prod: $('fProduct').value, status: $('fStatus').value,
+      cat: $('fCategory').value, prod: $('fProduct').value, status: $('fStatus').value, pm: $('fPM').value,
       q: $('fSearch').value.trim().toLowerCase()
     };
     var lc = function (x) { return String(x || '').toLowerCase(); };
@@ -261,10 +263,11 @@
       if (v.cat && lc(t.category) !== lc(v.cat)) return false;
       if (v.prod && lc(t.product) !== lc(v.prod)) return false;
       if (v.status && lc(t.status) !== lc(v.status)) return false;
+if (v.pm && !pmList(t).some(function (n) { return lc(n) === lc(v.pm); })) return false;
       if (v.trainer === '__none') { if ((t.trainer_list || []).length) return false; }
       else if (v.trainer && !(t.trainer_list || []).some(function (n) { return lc(n) === lc(v.trainer); })) return false;
       if (v.q) {
-        var hay = [t.training_id, t.agency, t.agency_std, t.state, t.category, t.product, t.trainers, t.status, t.notes, t.portal_project, t.source_ref].join(' ').toLowerCase();
+        var hay = [t.training_id, t.agency, t.agency_std, t.state, t.category, t.product, t.trainers, t.status, t.notes, t.portal_project, t.source_ref, t.pm].join(' ').toLowerCase();
         if (hay.indexOf(v.q) < 0) return false;
       }
       return true;
@@ -288,6 +291,7 @@
       '<td>' + esc(t.product) + '</td>' +
       '<td>' + (t.trainers ? esc(t.trainers) : '<span class="warn">Unassigned</span>') + '</td>' +
       '<td>' + esc(t.status) + '</td>' +
+'<td>' + esc(t.pm) + '</td>' +
       '<td>' + esc(t.delivery) + '</td>' +
       '<td class="notes">' + (t.agency && t.agency_std && t.agency !== t.agency_std ? '<div>Source name: ' + esc(t.agency) + '</div>' : '') + esc(t.notes) + '</td>' +
       '<td class="nowrap small">' + links.join(' · ') + '<div class="muted">' + esc(t.training_id) + '</div></td>' +
@@ -316,7 +320,7 @@
         '<span class="muted small">' + rows.length + ' training' + (rows.length === 1 ? '' : 's') + '</span>' +
         cats.map(function (c) { return '<span class="chip cat ' + catClass(c) + '">' + esc(c) + '</span>'; }).join('') +
         '</summary><div class="table-wrap"><table><thead><tr>' +
-        '<th>Date</th><th>Category</th><th>Product</th><th>Trainer(s)</th><th>Status</th><th>Onsite/Remote</th><th>Notes</th><th>Links / ID</th>' +
+        '<th>Date</th><th>Category</th><th>Product</th><th>Trainer(s)</th><th>Status</th><th>PM</th><th>Onsite/Remote</th><th>Notes</th><th>Links / ID</th>' +
         '</tr></thead><tbody>' + rows.map(function (t) { return trainingRow(t, today); }).join('') + '</tbody></table></div></details>';
     }).join('');
   }
