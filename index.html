@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SS Training">
-<link rel="stylesheet" href="styles.css?v=2026-11-15c">
+<link rel="stylesheet" href="styles.css?v=2026-11-15d">
 <style>
 .help { max-width: 820px; }
 .help-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -50,6 +50,9 @@
 .menu-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
 .menu-btns button { font-size: 13px; }
 .pw-form { display: grid; gap: 6px; margin-top: 8px; }
+.pm-body { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 16px; padding: 12px 16px 14px; border-top: 1px solid var(--line); }
+.pm-f > div { margin-top: 1px; }
+.pm-notes { grid-column: 1 / -1; }
 @media (max-width: 640px) { .logo-name { display: none; } }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.119.0/dist/umd/supabase.min.js"></script>
@@ -111,6 +114,7 @@
   <nav class="menu-pages" role="tablist">
     <button class="tab" data-view="trainings" role="tab">Trainings</button>
     <button class="tab" data-view="trainers" role="tab">Trainers</button>
+    <button class="tab" data-view="pm" role="tab">Active PM Projects</button>
     <button class="tab" data-view="users" role="tab" id="usersTab" hidden>Users</button>
     <button type="button" id="helpBtn" class="menu-item">Help</button>
   </nav>
@@ -180,6 +184,19 @@
     </div>
     <div id="trainerList" class="trainer-grid"></div>
   </section>
+<!-- ACTIVE PM PROJECTS -->
+<section id="pmView" class="page" hidden>
+  <div class="filters card">
+    <label>State <select id="pmState"></select></label>
+    <label>Status <select id="pmStatus"></select></label>
+    <label>PM <select id="pmPM"></select></label>
+    <label class="grow">Search <input id="pmSearch" type="search" placeholder="Agency, trainer, notes…"></label>
+    <button id="pmClear" class="ghost">Clear</button>
+  </div>
+  <div class="summary"><span id="pmSummary"></span></div>
+  <div id="pmList"></div>
+</section>
+
 <!-- USERS (owner only) -->
 <section id="usersView" class="page" hidden>
   <form id="userForm" class="filters card">
@@ -264,8 +281,8 @@
   <details class="card"><summary>Top bar and Menu</summary><div class="help-body">
     <p>The dark bar at the top holds the <strong>Menu</strong> button, the <strong>sun / moon</strong> (Day / Night) button, the app name with the page you are on, and the logo.</p>
     <ul>
-      <li><strong>Menu, Pages</strong>: Trainings, Trainers, Users (only you, the owner) and Help.</li>
-      <li><strong>Menu, Day / Night</strong>: Day (light), Night (very dark grey with soft white text) or Automatic (follows your phone or computer). The sun / moon button switches between Day and Night. Your choice is remembered on this device, so even the sign-in screen opens that way.</li>
+      <li><strong>Menu, Pages</strong>: Trainings, Trainers, Active PM Projects, Users (only you, the owner) and Help.</li>
+      <li><strong>Menu, Day / Night</strong>: Day (light), Night (very dark grey with soft white text) or Automatic (follows your phone or computer). The sun / moon button switches between Day and Night. Your choice is saved with your account, so it follows you to every phone and computer, and is remembered on each device so even the sign-in screen opens that way.</li>
       <li><strong>Menu, User</strong>: your email and when the data was last synced, plus Set Up Face ID / Passkey, Change Password, Switch App (only if you also have the Conference Tracker) and Sign Out.</li>
     </ul>
   </div></details>
@@ -288,6 +305,15 @@
       <li><strong>Trainer(s)</strong>: <span class="warn">Unassigned</span> means no trainer is set yet.</li>
       <li><strong>Notes</strong>: from the tracker. "Source name" appears when the tracker spells the agency differently.</li>
       <li><strong>Links / ID</strong>: Drive folder and portal project when the tracker has them.</li>
+    </ul>
+  </div></details>
+
+  <details class="card"><summary>Active PM Projects page</summary><div class="help-body">
+    <p>Projects from Travis Pruitt's Current Projects Status Board, copied into the master sheet. One row per project with its state, status and project manager; tap a row for deliverables, date received, account manager, IT staff, trainers, hardware and notes.</p>
+    <ul>
+      <li>Shows only active projects: anything Complete, Cancelled, Closed, Done, Not Included or On Hold is left out. The line above the list says how many were left out.</li>
+      <li>Filters: State, Status, PM and Search (agency, trainer, notes and more). <em>Clear</em> resets them.</li>
+      <li>"Board last updated" shows when the PM last changed that project on the board, so you can tell how fresh it is.</li>
     </ul>
   </div></details>
 
@@ -316,6 +342,6 @@
 </main>
 
 <p id="fatal" class="fatal" hidden></p>
-<script src="app.js?v=2026-11-15c"></script>
+<script src="app.js?v=2026-11-15d"></script>
 </body>
 </html>
