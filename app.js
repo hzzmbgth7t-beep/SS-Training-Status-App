@@ -495,4 +495,52 @@ msg.className = 'msg ok'; msg.textContent = 'Access removed for ' + b.dataset.re
 grant(b.dataset.grant, b.dataset.name, 'invite');
 }
 });
+// ---------- Menu button and Day / Night (added 2026-11-15) ----------
+var THEME_KEY = 'ssts.theme';
+var darkMq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+function themeChoice() { try { return localStorage.getItem(THEME_KEY) || 'light'; } catch (e) { return 'light'; } }
+function applyTheme(choice) {
+if (choice) { try { localStorage.setItem(THEME_KEY, choice); } catch (e) { /* ignore */ } } else { choice = themeChoice(); }
+var night = choice === 'dark' || (choice === 'auto' && darkMq && darkMq.matches);
+document.documentElement.setAttribute('data-theme', night ? 'dark' : 'light');
+$('themeBtn').textContent = night ? '☀︎' : '☾';
+$('themeBtn').title = night ? 'Switch to Day' : 'Switch to Night';
+document.querySelectorAll('[data-theme-choice]').forEach(function (b) { b.classList.toggle('on', b.dataset.themeChoice === choice); });
+}
+if (darkMq && darkMq.addEventListener) darkMq.addEventListener('change', function () { if (themeChoice() === 'auto') applyTheme(); });
+$('themeBtn').addEventListener('click', function () {
+applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+document.querySelectorAll('[data-theme-choice]').forEach(function (b) {
+b.addEventListener('click', function () { applyTheme(b.dataset.themeChoice); });
+});
+applyTheme();
+
+var PAGE_NAMES = { trainings: 'Trainings', trainers: 'Trainers', users: 'Users' };
+function openMenu(on) {
+$('menuPanel').hidden = !on;
+$('menuBtn').setAttribute('aria-expanded', on ? 'true' : 'false');
+}
+$('menuBtn').addEventListener('click', function (e) { e.stopPropagation(); openMenu($('menuPanel').hidden); });
+document.addEventListener('click', function (e) {
+if (!$('menuPanel').hidden && !$('menuPanel').contains(e.target) && e.target !== $('menuBtn')) openMenu(false);
+});
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') openMenu(false); });
+document.querySelectorAll('.tab').forEach(function (b) {
+b.addEventListener('click', function () { $('pageName').textContent = PAGE_NAMES[b.dataset.view] || ''; openMenu(false); window.scrollTo(0, 0); });
+});
+$('pageName').textContent = PAGE_NAMES[state.view] || '';
+$('helpBtn').addEventListener('click', function () { openMenu(false); });
+$('signOut').addEventListener('click', function () { openMenu(false); });
+$('switchApp').addEventListener('click', function () { openMenu(false); });
+
+$('changePwBtn').addEventListener('click', function () { $('pwForm').hidden = !$('pwForm').hidden; $('pwMsg').textContent = ''; });
+$('pwForm').addEventListener('submit', function (e) {
+e.preventDefault();
+var m = $('pwMsg'); m.className = 'msg'; m.textContent = 'Saving…';
+sb.auth.updateUser({ password: $('pwNew').value }).then(function (r) {
+if (r.error) { m.textContent = 'Not changed: ' + r.error.message; return; }
+m.className = 'msg ok'; m.textContent = 'Password changed.'; $('pwNew').value = '';
+});
+});
 })();
