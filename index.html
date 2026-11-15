@@ -13,8 +13,25 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SS Training">
-<link rel="stylesheet" href="styles.css?v=2026-11-15f">
+<link rel="stylesheet" href="styles.css?v=2026-11-15g">
 <style>
+tr.t-row{cursor:pointer}
+tr.t-row:hover td{background:var(--chip)}
+tr.t-row .tw::before{content:"▸";display:inline-block;width:1.1em;color:var(--muted)}
+tr.t-row.open .tw::before{content:"▾"}
+tr.t-detail>td{padding:0 12px 12px}
+.nbox{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--surface);max-width:900px;white-space:normal}
+.nfields{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:12px;color:var(--muted);margin-bottom:6px}
+.nentry{display:grid;grid-template-columns:96px 1fr;gap:10px;padding:7px 0;border-top:1px solid var(--line)}
+.ndate{font-weight:600;font-size:13px;white-space:nowrap}
+.ntext{font-size:14px;line-height:1.45}
+.mine-btn.on{background:var(--accent-2);border-color:var(--accent)}
+.pick{position:fixed;left:50%;top:76px;transform:translateX(-50%);z-index:60;width:min(420px,calc(100vw - 32px));max-height:72vh;overflow:auto;padding:14px;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+.pick-list label{display:flex;gap:8px;align-items:center;padding:7px 0;border-top:1px solid var(--line)}
+.pick-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.menu-defaults label{display:flex;justify-content:space-between;gap:8px;align-items:center;margin:4px 4px;font-size:14px}
+.menu-defaults select{max-width:60%}
+@media (max-width:600px){.nentry{grid-template-columns:1fr;gap:2px}}
 details.trainer{padding:0}
 .trainer-body{padding:0 14px 12px}
 .trainer-body .meta{margin-top:0}
@@ -117,6 +134,7 @@ details.trainer{padding:0}
   <div class="menu-sec">Pages</div>
   <nav class="menu-pages" role="tablist">
     <button class="tab" data-view="trainings" role="tab">Trainings</button>
+    <button class="tab" data-view="completed" role="tab">Completed</button>
     <button class="tab" data-view="trainers" role="tab">Trainers</button>
     <button class="tab" data-view="pm" role="tab">Active PM Projects</button>
     <button class="tab" data-view="users" role="tab" id="usersTab" hidden>Users</button>
@@ -127,6 +145,13 @@ details.trainer{padding:0}
     <button type="button" data-theme-choice="light">Day</button>
     <button type="button" data-theme-choice="dark">Night</button>
     <button type="button" data-theme-choice="auto">Automatic</button>
+  </div>
+  <div class="menu-sec">My defaults</div>
+  <div class="menu-defaults">
+    <label>List order <select id="dSort"></select></label>
+    <label>Direction <select id="dSortDir"><option value="asc">A–Z / oldest first</option><option value="desc">Z–A / newest first</option></select></label>
+    <label>Notes <select id="dNotes"><option value="newest">Newest entry first</option><option value="oldest">Oldest entry first</option></select></label>
+    <p id="dMsg" class="small muted"></p>
   </div>
   <div class="menu-sec">User</div>
   <div class="menu-user">
@@ -170,10 +195,14 @@ details.trainer{padding:0}
       <label>Status <select id="fStatus"></select></label>
 <label>PM <select id="fPM"></select></label>
       <label class="grow">Search <input id="fSearch" type="search" placeholder="Agency, notes, ID…"></label>
-      <button id="clearFilters" class="ghost">Clear</button>
+      <label>Sort <select id="fSort"></select></label>
+      <label>Order <select id="fSortDir"><option value="asc">A–Z / oldest first</option><option value="desc">Z–A / newest first</option></select></label>
+      <button id="resetLast" class="ghost" title="Put the last thing you changed back to its default">Reset</button>
+      <button id="clearFilters" class="ghost" title="Go back to your default settings">Reset all</button>
     </div>
     <div class="summary"><span id="tSummary"></span>
       <span class="spacer"></span>
+      <button class="ghost small mine-btn">Show My Projects</button>
       <button id="expandAll" class="ghost small">Expand all</button>
       <button id="collapseAll" class="ghost small">Collapse all</button>
     </div>
@@ -186,6 +215,7 @@ details.trainer{padding:0}
       <span id="rSummary"></span>
       <span class="spacer"></span>
       <label class="small"><input type="checkbox" id="showInactive"> Show inactive trainers</label>
+      <button class="ghost small mine-btn">Show My Projects</button>
       <button id="trExpand" class="ghost small">Expand all</button>
       <button id="trCollapse" class="ghost small">Collapse all</button>
     </div>
@@ -200,7 +230,7 @@ details.trainer{padding:0}
     <label class="grow">Search <input id="pmSearch" type="search" placeholder="Agency, trainer, notes…"></label>
     <button id="pmClear" class="ghost">Clear</button>
   </div>
-  <div class="summary"><span id="pmSummary"></span></div>
+  <div class="summary"><span id="pmSummary"></span><span class="spacer"></span><button class="ghost small mine-btn">Show My Projects</button></div>
   <div id="pmList"></div>
 </section>
 
@@ -213,6 +243,13 @@ details.trainer{padding:0}
     <p class="muted small">There: sign in, open the Menu, choose Admin, then Users. Tick Training Status for anyone who should use this app.</p>
   </div>
 </section>
+</div>
+
+<div id="trPick" class="card pick" role="dialog" aria-label="Select trainers" hidden>
+  <strong>Select Trainer(s)</strong>
+  <p class="muted small">Show only these trainers' projects on every page. Clear all to show everyone.</p>
+  <div id="pickList" class="pick-list"></div>
+  <div class="pick-actions"><button type="button" id="pickAll" class="ghost small">Clear all</button><button type="button" id="pickCancel" class="ghost small">Cancel</button><button type="button" id="pickApply" class="primary small">Show</button></div>
 </div>
 
 <!-- HELP: setup instructions and user guide -->
@@ -279,7 +316,7 @@ details.trainer{padding:0}
   <details class="card"><summary>Top bar and Menu</summary><div class="help-body">
     <p>The dark bar at the top holds the <strong>Menu</strong> button, the <strong>sun / moon</strong> (Day / Night) button, the app name with the page you are on, and the logo.</p>
     <ul>
-      <li><strong>Menu, Pages</strong>: Trainings, Trainers, Active PM Projects, Users (only you, the owner) and Help.</li>
+      <li><strong>Menu, Pages</strong>: Trainings, Completed, Trainers, Active PM Projects, Users (only you, the owner) and Help.</li>
       <li><strong>Menu, Day / Night</strong>: Day (light), Night (very dark grey with soft white text) or Automatic (follows your phone or computer). The sun / moon button switches between Day and Night. Your choice is saved with your account, so it follows you to every phone and computer, and is remembered on each device so even the sign-in screen opens that way.</li>
       <li><strong>Menu, User</strong>: your email and when the data was last synced, plus Set Up Face ID / Passkey, Change Password, Switch App (only if you also have the Conference Tracker) and Sign Out.</li>
     </ul>
@@ -294,7 +331,9 @@ details.trainer{padding:0}
       <li><strong>PM</strong>: one project manager's items. A training with two PMs (for example "Travis Pruitt, Ronn Brigman") shows under each of them.</li>
       <li><strong>Trainer</strong>: one trainer's items, or <em>Unassigned</em> for items with no trainer yet.</li>
       <li><strong>Search</strong>: any word in the agency, notes, product, status or portal number.</li>
-      <li><strong>Clear</strong>: resets every filter.</li>
+      <li><strong>Sort</strong> and <strong>Order</strong>: list agencies alphabetically or by Date signed, Date assigned, Kickoff Meeting, Admin Training, User Training or Go Live. Items without that date go last, by start date. (These dates appear once they are added to the master sheet.)</li>
+      <li><strong>Reset</strong>: puts the last thing you changed back to its default. <strong>Reset all</strong>: goes back to your default settings (all filters cleared, your default order, everyone's projects).</li>
+      <li><strong>Show My Projects</strong>: only items where you are a trainer (your sign-in email must be on the master sheet's Trainers tab). Tap again for everyone. Admins see <strong>Select Trainer(s)</strong> instead: tick one or more trainers and tap <em>Show</em>. The choice applies on every page.</li>
     </ul>
     <p>Your filters are remembered on this device, so the app opens the way you left it.</p>
     <h3>Reading a row</h3>
@@ -303,9 +342,17 @@ details.trainer{padding:0}
       <li><strong>Category</strong>: colour-coded (Free, Paid, Nucleus RMS Upgrade, Nucleus QM Upgrade, STING Upgrade, Product, Other).</li>
       <li><strong>Trainer(s)</strong>: <span class="warn">Unassigned</span> means no trainer is set yet.</li>
       <li><strong>PM</strong>: the project manager from the tracker.</li>
-      <li><strong>Notes</strong>: from the tracker. "Source name" appears when the tracker spells the agency differently.</li>
+      <li><strong>Notes</strong>: tap a row to open its notes in a box beneath it, split by entry date (newest first unless you change it in My defaults). Text with no date shows last as <em>Undated</em>. The box also shows the tracker's agency name when it differs, the source and the last update. Tap the row again to close it.</li>
       <li><strong>Links / ID</strong>: Drive folder and portal project when the tracker has them.</li>
     </ul>
+  </div></details>
+
+  <details class="card"><summary>Completed page</summary><div class="help-body">
+    <p>Trainings marked Complete or Closed (Closed = the agency never followed through). They no longer show on the Trainings page. The filters, Sort, Reset and Show My Projects work the same way; the default date choice shows all dates here.</p>
+  </div></details>
+
+  <details class="card"><summary>My defaults</summary><div class="help-body">
+    <p>Menu, <em>My defaults</em>: your default list order and direction, and whether notes show the newest or oldest entry first. Saved with your account, so they follow you to any device. <em>Reset all</em> returns to these.</p>
   </div></details>
 
   <details class="card"><summary>Active PM Projects page</summary><div class="help-body">
@@ -337,6 +384,6 @@ details.trainer{padding:0}
 </main>
 
 <p id="fatal" class="fatal" hidden></p>
-<script src="app.js?v=2026-11-15f"></script>
+<script src="app.js?v=2026-11-15g"></script>
 </body>
 </html>
