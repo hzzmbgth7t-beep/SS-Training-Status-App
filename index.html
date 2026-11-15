@@ -79,6 +79,7 @@
     <nav class="tabs" role="tablist">
       <button class="tab" data-view="trainings" role="tab">Trainings</button>
       <button class="tab" data-view="trainers" role="tab">Trainers</button>
+    <button class="tab" data-view="users" role="tab" id="usersTab" hidden>Users</button>
     </nav>
     <div class="who">
       <span id="syncInfo" class="muted small"></span>
@@ -132,6 +133,24 @@
     </div>
     <div id="trainerList" class="trainer-grid"></div>
   </section>
+<!-- USERS (owner only) -->
+<section id="usersView" class="page" hidden>
+  <form id="userForm" class="filters card">
+    <label>Name <input id="uName" type="text" required placeholder="First Last"></label>
+    <label class="grow">Email <input id="uEmail" type="email" required placeholder="name@southernsoftware.com"></label>
+    <label>How they get in
+      <select id="uMethod">
+        <option value="invite">Email them an invite link</option>
+        <option value="password">Make a temporary password</option>
+      </select>
+    </label>
+    <button type="submit" class="primary">Give access</button>
+  </form>
+  <p id="uMsg" class="msg" role="status"></p>
+  <div id="uPassBox" class="card" style="padding:12px;margin:8px 0" hidden>Temporary password (shown once): <strong id="uPass" style="font-family:monospace;font-size:16px"></strong></div>
+  <div class="summary"><span id="uSummary"></span></div>
+  <div id="userList"></div>
+</section>
 </div>
 
 <!-- HELP: setup instructions and user guide -->
@@ -199,6 +218,7 @@
     <ul>
       <li><strong>Trainings / Trainers</strong>: switch between the two pages.</li>
       <li><strong>Help</strong>: this page.</li>
+      <li><strong>Users</strong>: only you (the owner) see this; add or remove people.</li>
       <li><strong>Set up Face ID</strong>: adds Face ID or passkey sign-in for this device.</li>
       <li><strong>Switch app</strong>: only shown if you also have the Conference Tracker.</li>
       <li><strong>Sign out</strong>: signs you out on this device.</li>
@@ -228,6 +248,15 @@
 
   <details class="card"><summary>Trainers page</summary><div class="help-body">
     <p>Each trainer's current assignments (not finished yet), busiest first, with their email and products. Tick <em>Show inactive trainers</em> to include trainers marked inactive. A trainer with a yellow note is named on a training but missing from the master sheet's Trainers tab; tell Ronnie.</p>
+  </div></details>
+
+  <details class="card"><summary>Users page (Ronnie only)</summary><div class="help-body">
+    <p>Only the account owner sees the <em>Users</em> tab.</p>
+    <ul>
+      <li><strong>Give access</strong>: enter the name and @southernsoftware.com email, choose how they get in, and tap <em>Give access</em>. <em>Email them an invite link</em> sends an email to set a password. <em>Make a temporary password</em> shows a password once for you to pass on; they can change it with <em>Forgot password?</em>. If they already have an account (for example from the Conference Tracker), no email is sent; they sign in as usual.</li>
+      <li><strong>Remove access</strong>: takes away Training Status only. Their account and any Conference Tracker access stay as they are.</li>
+      <li>The list shows everyone on the shared access list, whether they have Training Status and Conference Tracker access, and when they last signed in.</li>
+    </ul>
   </div></details>
 
   <details class="card"><summary>Something looks wrong</summary><div class="help-body">
