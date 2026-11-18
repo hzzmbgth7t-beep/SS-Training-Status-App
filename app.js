@@ -79,7 +79,7 @@
     sb.rpc('my_app_access').then(function (r) {
       if (r.error) throw r.error;
       var a = state.access = r.data || {};
-      $('switchApp').hidden = !(a.training && a.conference);
+      updateSwitch();
       if (a.training && a.conference) {
         if (chosen() === 'training') return enterTraining();
         only('gateView'); $('gateChoices').hidden = false; $('gateMsg').textContent = 'You have access to both apps. Which one do you want to open?';
@@ -102,10 +102,8 @@
   }
   $('pickTraining').addEventListener('click', enterTraining);
   $('pickConference').addEventListener('click', openConference);
-  $('switchApp').addEventListener('click', function () {
-    try { sessionStorage.removeItem(CHOICE_KEY); } catch (e) { /* ignore */ }
-    only('gateView'); $('gateChoices').hidden = false; $('gateMsg').textContent = 'Which app do you want to open?';
-  });
+  // Switch App: administrators with both apps only; goes straight to the Conference Tracker (Ronnie 11/18).
+  $('switchApp').addEventListener('click', function () { openConference(); });
   $('gateSignOut').addEventListener('click', function () { sb.auth.signOut(); });
 
   $('loginForm').addEventListener('submit', function (e) {
@@ -700,6 +698,9 @@ if (state.loaded) render();
 ['dSort', 'dSortDir', 'dNotes'].forEach(function (id) { $(id).addEventListener('change', savePrefs); });
 showPrefs();
 
+// Switch App shows only for administrators (owner or Training Admin) who also have the Conference Tracker.
+function updateSwitch() { var a = state.access || {}; $('switchApp').hidden = !(me && me.admin && a.training && a.conference); }
+
 // Show My Projects / Select Trainer(s)
 function myNames() { return state.trainers.filter(function (r) { return r.email && lcs(r.email) === me.email; }).map(function (r) { return lcs(r.name); }); }
 function mineLabel() {
@@ -738,10 +739,10 @@ $('pickAll').addEventListener('click', function () { $('pickList').querySelector
 $('pickCancel').addEventListener('click', function () { $('trPick').hidden = true; });
 
 sb.auth.onAuthStateChange(function (event, session) {
-if (!session) { me = { id: null, email: '', admin: false }; setMine(null); return; }
+if (!session) { me = { id: null, email: '', admin: false }; setMine(null); updateSwitch(); return; }
 if (event !== 'SIGNED_IN' && event !== 'INITIAL_SESSION') return;
 me.id = session.user.id; me.email = lcs(session.user.email);
-sb.rpc('ts_is_admin').then(function (r) { me.admin = !r.error && r.data === true; setMine(state.mine); });
+sb.rpc('ts_is_admin').then(function (r) { me.admin = !r.error && r.data === true; setMine(state.mine); updateSwitch(); });
 sb.from('ts_user_settings').select('sort_default,sort_dir,notes_order').eq('user_id', me.id).maybeSingle().then(function (r) {
 if (r.error || !r.data) return;
 var hadDefault = $('fSort').value === prefs.sort_default && $('fSortDir').value === prefs.sort_dir;
