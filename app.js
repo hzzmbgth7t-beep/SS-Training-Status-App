@@ -99,6 +99,7 @@
   function enterTraining() {
     choose('training'); only('appView');
     if (!state.loaded) loadData();
+    maybeStartTiles();
   }
   $('pickTraining').addEventListener('click', enterTraining);
   $('pickConference').addEventListener('click', openConference);
@@ -751,5 +752,476 @@ showPrefs();
 if (hadDefault) { $('fSort').value = prefs.sort_default; $('fSortDir').value = prefs.sort_dir; saveFilters(); }
 if (state.loaded) render();
 });
+});
+
+// ---------- Card Reader (Ronnie 11/21-22) ----------
+// Own ts_ tables, separate from the Conference Tracker. Agency replaces the conference field (Ronnie 11/21, 1).
+PAGE_NAMES.cards = 'Card Reader';
+var CF = ['first_name', 'last_name', 'title', 'agency', 'department', 'work_email', 'mobile', 'office_phone', 'office_ext',
+  'city', 'state', 'website', 'linkedin', 'badge_code', 'date_met', 'notes'];
+var cards = { list: [], reasons: [], exp: {}, shares: {}, loaded: false, editing: null, image: null, otherReason: null, pendingSave: null };
+var TESS_URL = 'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js';
+var JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+function loadScript(url) {
+  return new Promise(function (ok, bad) {
+    if (document.querySelector('script[src="' + url + '"]')) return ok();
+    var s = document.createElement('script'); s.src = url; s.onload = ok; s.onerror = function () { bad(new Error('Could not load ' + url)); };
+    document.head.appendChild(s);
+  });
+}
+function cMe() { return (me && me.email) || ''; }
+function cName(c) { return [c.first_name, c.last_name].filter(Boolean).join(' ') || c.work_email || '(no name)'; }
+function cIsNew(c) { var e = cards.exp[c.id]; return !e || e < c.updated_at; }
+function cDigits(s) { return String(s || '').replace(/\D/g, '').slice(-10); }
+function cMsg(t, ok) { var m = $('cfMsg'); m.className = 'msg' + (ok ? ' ok' : ''); m.textContent = t || ''; }
+
+// ---- load and list ----
+function loadCards() {
+  if (!me.id) return Promise.resolve();
+  return Promise.all([
+    sb.from('ts_contacts').select('*').order('updated_at', { ascending: false }),
+    sb.from('ts_card_reasons').select('reason').order('reason'),
+    sb.from('ts_contact_exports').select('contact_id,exported_at'),
+    sb.from('ts_contact_shares').select('contact_id,email')
+  ]).then(function (r) {
+    var err = r.filter(function (x) { return x.error; })[0];
+    if (err) throw err.error;
+    cards.list = r[0].data || [];
+    cards.reasons = (r[1].data || []).map(function (x) { return x.reason; });
+    cards.exp = {}; (r[2].data || []).forEach(function (x) { cards.exp[x.contact_id] = x.exported_at; });
+    cards.shares = {}; (r[3].data || []).forEach(function (x) { (cards.shares[x.contact_id] = cards.shares[x.contact_id] || []).push(x.email); });
+    cards.loaded = true;
+    cardCounts(); renderCards();
+  }).catch(function (e) {
+    $('cardList').innerHTML = '<div class="empty card">Could not load cards: ' + esc(e.message || e) + '</div>';
+  });
+}
+function cardCounts() {
+  var n = cards.list.filter(cIsNew), mine = n.filter(function (c) { return c.created_by_email === cMe(); }).length;
+  $('cardCounts').innerHTML = (mine ? '<span class="chip">' + mine + ' mine</span>' : '') + (n.length ? '<span class="chip">' + n.length + ' all</span>' : '');
+}
+function renderCards() {
+  var q = $('cSearch').value.trim().toLowerCase(), show = $('cShow').value;
+  var list = cards.list.filter(function (c) {
+    if (show === 'mine' && c.created_by_email !== cMe()) return false;
+    if (show === 'new' && !cIsNew(c)) return false;
+    if (q && [cName(c), c.title, c.agency, c.department, c.work_email, c.mobile, c.office_phone, c.city, c.state, c.reason, (c.tags || []).join(' '), c.notes]
+      .join(' ').toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  });
+  var newCount = cards.list.filter(cIsNew).length;
+  $('cSummary').textContent = list.length + ' card' + (list.length === 1 ? '' : 's') + ' shown · ' + newCount + ' not exported yet';
+  $('cBackup').hidden = !me.admin;
+  if (!list.length) { $('cardList').innerHTML = '<div class="empty card">' + (cards.list.length ? 'No cards match.' : 'No cards yet. Tap Add Card.') + '</div>'; return; }
+  $('cardList').innerHTML = list.map(function (c) {
+    return '<div class="card c-row" data-id="' + esc(c.id) + '"><div class="c-line1"><strong>' + esc(cName(c)) + '</strong>' +
+      (c.reason ? '<span class="chip">' + esc(c.reason) + '</span>' : '') + (cIsNew(c) ? '<span class="chip badge-now">New</span>' : '') +
+      (c.visibility === 'only_me' ? '<span class="chip">Only me</span>' : c.visibility === 'selected' ? '<span class="chip">Shared</span>' : '') + '</div>' +
+      '<div class="small">' + [esc(c.title), esc(c.agency), esc(c.department)].filter(String).join(' · ') + '</div>' +
+      '<div class="small muted">' + [esc(c.work_email), esc(c.mobile), esc(c.office_phone) + (c.office_ext ? ' x' + esc(c.office_ext) : '')].filter(function (x) { return x && x !== ' x'; }).join(' · ') +
+      ' · saved by ' + esc(c.created_by_email) + '</div></div>';
+  }).join('');
+}
+$('cardList').addEventListener('click', function (e) {
+  var r = e.target.closest('.c-row'); if (!r) return;
+  var c = cards.list.filter(function (x) { return x.id === r.dataset.id; })[0]; if (c) openCardForm(c);
+});
+$('cSearch').addEventListener('input', renderCards);
+$('cShow').addEventListener('change', renderCards);
+document.querySelectorAll('.tab').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var on = b.dataset.view === 'cards';
+    $('cardsView').hidden = !on;
+    if (on) { $('cardList').innerHTML = cards.loaded ? $('cardList').innerHTML : '<div class="empty">Loading…</div>'; loadCards(); }
+  });
+});
+
+// ---- form ----
+function fillReasons(sel) {
+  var list = cards.reasons.slice();
+  if (sel && list.indexOf(sel) < 0) list.push(sel);
+  $('cf_reason').innerHTML = '<option value="">Choose a reason…</option>' + list.map(function (r) { return '<option>' + esc(r) + '</option>'; }).join('') +
+    '<option value="__other">Other…</option>';
+  $('cf_reason').value = sel || '';
+}
+function agencyList() {
+  $('cfAgencies').innerHTML = uniq(state.trainings.map(function (t) { return t.agency_std || t.agency; })).map(function (a) { return '<option value="' + esc(a) + '">'; }).join('');
+}
+function setMarks(marks) {
+  CF.forEach(function (f) {
+    var el = document.querySelector('[data-mark="' + f + '"]'); if (!el) return;
+    var m = marks && marks[f]; el.textContent = m === 'read' ? 'read' : m === 'check' ? 'check this' : ''; el.className = 'mark ' + (m || '');
+  });
+}
+function openCardForm(c, prefill) {
+  cards.editing = c || null; cards.otherReason = null; cards.pendingSave = null;
+  if (!prefill) cards.image = null;
+  $('cfTitle').textContent = c ? 'Edit Card' : 'Add Card';
+  CF.forEach(function (f) { $('cf_' + f).value = c ? (c[f] == null ? '' : c[f]) : ''; });
+  if (!c) $('cf_date_met').value = todayIso();
+  $('cf_tags').value = c ? (c.tags || []).join(', ') : '';
+  fillReasons(c ? c.reason : '');
+  $('cf_vis').value = c ? c.visibility : 'everyone';
+  $('cf_share').value = c ? (cards.shares[c.id] || []).join(', ') : '';
+  var mine = !c || c.created_by_email === cMe();
+  $('cf_vis').disabled = !mine; $('cf_share').disabled = !mine;
+  $('cfShareRow').hidden = $('cf_vis').value !== 'selected';
+  $('cfOther').hidden = true; $('cfDup').hidden = true; $('cfPaste').hidden = true; cMsg('');
+  $('cfDelete').hidden = !(c && (c.created_by_email === cMe() || me.admin));
+  $('cfViewImg').hidden = !c; $('cfImg').hidden = true; $('cfImg').src = '';
+  $('cfSaved').textContent = c ? 'Saved by ' + c.created_by_email + (c.updated_by_email ? ' · last edit ' + c.updated_by_email : '') : '';
+  agencyList(); setMarks(null);
+  if (prefill) applyParsed(prefill);
+  $('cardForm').hidden = false; $('cardForm').scrollTop = 0;
+}
+$('cAdd').addEventListener('click', function () { openCardForm(null); });
+$('cfCancel').addEventListener('click', function () { $('cardForm').hidden = true; stopCam(); });
+$('cf_vis').addEventListener('change', function () { $('cfShareRow').hidden = $('cf_vis').value !== 'selected'; });
+$('cf_reason').addEventListener('change', function () {
+  if ($('cf_reason').value !== '__other') { $('cfOther').hidden = true; return; }
+  $('cfOther').hidden = false; $('cfOtherText').value = ''; $('cfOtherText').focus();
+  $('cfAddList').hidden = !me.admin; $('cfAsk').hidden = true;
+});
+function useOther(addToList) {
+  var r = $('cfOtherText').value.trim().slice(0, 60);
+  if (!r) { cMsg('Type the other reason first.'); return; }
+  if (addToList) {
+    sb.from('ts_card_reasons').insert({ reason: r, added_by_email: cMe() }).then(function (x) {
+      if (x.error && !/duplicate/i.test(x.error.message)) { cMsg('Not added to the list: ' + x.error.message); return; }
+      if (cards.reasons.indexOf(r) < 0) cards.reasons.push(r);
+      cards.reasons.sort(); fillReasons(r); $('cfOther').hidden = true; cMsg('Added "' + r + '" to the reason list.', true);
+    });
+  } else {
+    fillReasons(r); $('cfOther').hidden = true;
+    if (!me.admin) { $('cfAskText').textContent = r; $('cfAsk').hidden = false; }
+  }
+}
+$('cfAddList').addEventListener('click', function () { useOther(true); });
+$('cfUseOnce').addEventListener('click', function () { useOther(false); });
+$('cfAskYes').addEventListener('click', function () {
+  var r = $('cfAskText').textContent; $('cfAsk').hidden = true;
+  sb.from('ts_reason_requests').insert({ reason: r, requested_by_email: cMe() }).then(function (x) {
+    cMsg(x.error ? 'Request not sent: ' + x.error.message : 'Request sent to add "' + r + '" for everyone.', !x.error);
+  });
+});
+$('cfAskNo').addEventListener('click', function () { $('cfAsk').hidden = true; });
+
+function formValues() {
+  var o = {};
+  CF.forEach(function (f) { var v = $('cf_' + f).value.trim(); o[f] = v || null; });
+  if (o.work_email) o.work_email = o.work_email.toLowerCase();
+  if (o.state) o.state = o.state.toUpperCase().slice(0, 2);
+  o.tags = $('cf_tags').value.split(',').map(function (s) { return s.trim(); }).filter(String);
+  o.reason = $('cf_reason').value === '__other' ? '' : $('cf_reason').value;
+  o.visibility = $('cf_vis').value;
+  return o;
+}
+function findDups(o) {
+  var em = o.work_email, nm = ((o.first_name || '') + ' ' + (o.last_name || '')).trim().toLowerCase(), mob = cDigits(o.mobile);
+  return cards.list.filter(function (c) {
+    return (em && c.work_email === em) || (nm.indexOf(' ') > 0 && cName(c).toLowerCase() === nm) || (mob.length === 10 && cDigits(c.mobile) === mob);
+  });
+}
+$('cfSave').addEventListener('click', function () {
+  var o = formValues();
+  if (!o.reason) { cMsg('Choose a reason (required).'); return; }
+  if (!o.first_name && !o.last_name && !o.work_email) { cMsg('Add at least a name or an email.'); return; }
+  if (!cards.editing) {
+    var d = findDups(o);
+    if (d.length) { cards.pendingSave = o; showDup(d[0], o); return; }
+  }
+  saveCard(o, cards.editing);
+});
+function saveCard(o, existing) {
+  cMsg('Saving…');
+  var shareList = $('cf_share').value.split(/[,;\s]+/).map(function (s) { return s.trim().toLowerCase(); }).filter(function (s) { return /@/.test(s); });
+  var p = existing
+    ? sb.from('ts_contacts').update(o).eq('id', existing.id).select().single()
+    : sb.from('ts_contacts').insert(Object.assign({ created_by_email: cMe() }, o)).select().single();
+  p.then(function (r) {
+    if (r.error) throw r.error;
+    var c = r.data, jobs = [];
+    if (c.created_by_email === cMe()) {
+      jobs.push(sb.from('ts_contact_shares').delete().eq('contact_id', c.id).then(function () {
+        if (o.visibility === 'selected' && shareList.length)
+          return sb.from('ts_contact_shares').insert(shareList.map(function (e) { return { contact_id: c.id, email: e }; }));
+      }));
+      if (cards.image && !existing) jobs.push(sb.from('ts_card_images').insert({ contact_id: c.id, image: cards.image, created_by: cMe() }));
+    }
+    return Promise.all(jobs).then(function () { return c; });
+  }).then(function () {
+    cards.image = null; $('cardForm').hidden = true; loadCards();
+  }).catch(function (e) { cMsg('Not saved: ' + (e.message || e)); });
+}
+// Possible duplicate: use existing, update side by side, or save as new.
+function showDup(c, o) {
+  var rows = CF.concat(['reason']).filter(function (f) { return (o[f] || '') !== (c[f] == null ? '' : String(c[f])) && o[f]; });
+  $('cfDupText').textContent = 'Possible duplicate: ' + cName(c) + (c.agency ? ' (' + c.agency + ')' : '') + ', saved by ' + c.created_by_email + '.';
+  $('cfDupTable').innerHTML = rows.length ? '<table><thead><tr><th>Use new?</th><th>Field</th><th>On file</th><th>New</th></tr></thead><tbody>' +
+    rows.map(function (f) {
+      return '<tr><td><input type="checkbox" data-f="' + f + '"' + (c[f] ? '' : ' checked') + '></td><td>' + esc(f.replace(/_/g, ' ')) + '</td><td>' + esc(c[f] || '') + '</td><td>' + esc(o[f]) + '</td></tr>';
+    }).join('') + '</tbody></table>' : '<p class="small muted">No differences.</p>';
+  cards.dupOf = c; $('cfDup').hidden = false; cMsg('');
+}
+$('cfDupUse').addEventListener('click', function () { $('cfDup').hidden = true; openCardForm(cards.dupOf); });
+$('cfDupNew').addEventListener('click', function () { $('cfDup').hidden = true; saveCard(cards.pendingSave, null); });
+$('cfDupUpdate').addEventListener('click', function () {
+  var c = cards.dupOf, o = cards.pendingSave, upd = {};
+  $('cfDupTable').querySelectorAll('input[data-f]:checked').forEach(function (i) { upd[i.dataset.f] = o[i.dataset.f]; });
+  if (!Object.keys(upd).length) { cMsg('Tick at least one field to update, or use the existing card.'); return; }
+  sb.from('ts_contacts').update(upd).eq('id', c.id).then(function (r) {
+    if (r.error) { cMsg('Not updated: ' + r.error.message); return; }
+    $('cfDup').hidden = true; $('cardForm').hidden = true; loadCards();
+  });
+});
+$('cfDelete').addEventListener('click', function () {
+  var c = cards.editing; if (!c) return;
+  if (!$('cfDelete').dataset.armed) { $('cfDelete').dataset.armed = '1'; $('cfDelete').textContent = 'Tap again to delete'; return; }
+  delete $('cfDelete').dataset.armed; $('cfDelete').textContent = 'Delete';
+  sb.from('ts_contacts').delete().eq('id', c.id).then(function (r) {
+    if (r.error) { cMsg('Not deleted: ' + r.error.message); return; }
+    $('cardForm').hidden = true; loadCards();
+  });
+});
+$('cfViewImg').addEventListener('click', function () {
+  var c = cards.editing; if (!c) return;
+  sb.from('ts_card_images').select('image').eq('contact_id', c.id).maybeSingle().then(function (r) {
+    if (r.error || !r.data) { cMsg('No card picture (it is removed once the saver exports the card).'); return; }
+    $('cfImg').src = r.data.image; $('cfImg').hidden = false;
+  });
+});
+
+// ---- reading text into fields ----
+var TITLE_RE = /\b(chief|sheriff|deputy|officer|sergeant|sgt|lieutenant|lt|captain|capt|major|colonel|corporal|cpl|detective|investigator|director|manager|coordinator|administrator|supervisor|clerk|analyst|specialist|technician|dispatcher|commander|president|vice|assistant|records|it\b|marshal|warden|jailer|constable)/i;
+var AGENCY_RE = /\b(police|sheriff'?s?|county|department|dept|pd\b|so\b|city of|town of|university|college|campus|911|e-?911|communications|detention|jail|public safety|marshal|state)\b/i;
+var RANK_RE = /^(lt|lieutenant|sgt|sergeant|capt|captain|cpl|corporal|det|detective|chief|major|maj|sheriff|deputy|dep|officer|ofc|col|colonel|investigator|inv)\.?\s+(.+)$/i;
+var DEPT_RE = /\b(division|unit|bureau|section|office of|records|investigations|patrol|support services)\b/i;
+function parseCardText(text) {
+  var f = {}, m = {}, used = {};
+  var lines = String(text || '').split(/\r?\n/).map(function (s) { return s.replace(/\s+/g, ' ').trim(); }).filter(function (s) { return s.length > 1; });
+  var all = lines.join('\n');
+  var em = all.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+  if (em) { f.work_email = em[0].toLowerCase(); m.work_email = 'read'; }
+  var li = all.match(/(https?:\/\/)?(www\.)?linkedin\.com\/[^\s]+/i);
+  if (li) { f.linkedin = li[0]; m.linkedin = 'read'; }
+  lines.forEach(function (l, i) {
+    if (/@/.test(l) || /linkedin/i.test(l)) { used[i] = 1; return; }
+    var w = l.match(/\b((https?:\/\/)?(www\.)?[a-z0-9-]+\.(com|org|gov|net|us|edu|info|biz)(\/\S*)?)\b/i);
+    if (w && !f.website && !/\d{3}.*\d{4}/.test(l)) { f.website = w[1]; m.website = 'read'; used[i] = 1; }
+    var phoneRe = /(\+?1[\s.-]?)?\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})(\s*(?:x|ext\.?|extension)\s*(\d+))?/gi, p;
+    while ((p = phoneRe.exec(l))) {
+      used[i] = 1;
+      var num = '(' + p[2] + ') ' + p[3] + '-' + p[4];
+      var before = l.slice(Math.max(0, p.index - 12), p.index).toLowerCase();
+      if (/fax|\bf\b/.test(before)) continue;
+      if (/cell|mobile|\bm\b|\bc\b/.test(before) && !f.mobile) { f.mobile = num; m.mobile = 'read'; }
+      else if (!f.office_phone) { f.office_phone = num; m.office_phone = 'read'; if (p[6]) { f.office_ext = p[6]; m.office_ext = 'read'; } }
+      else if (!f.mobile) { f.mobile = num; m.mobile = 'check'; }
+    }
+    var cs = l.match(/^(?:.*?,\s*)?([A-Za-z .'-]+),\s*([A-Z]{2})\.?\s+\d{5}(-\d{4})?$/);
+    if (cs) { f.city = cs[1].trim(); f.state = cs[2]; m.city = 'read'; m.state = 'read'; used[i] = 1; }
+  });
+  var free = lines.map(function (l, i) { return { l: l, i: i }; }).filter(function (x) { return !used[x.i] && !/\d{3}/.test(x.l); });
+  // A rank in front of a name ("Lt. John Smith"): name from the rest, rank as the title if none found.
+  free.forEach(function (x) {
+    var r = x.l.match(RANK_RE); if (!r || f.first_name) return;
+    var words = r[2].replace(/[^A-Za-z .'-]/g, '').trim().split(' ').filter(String);
+    if (words.length >= 2 && words.length <= 4 && words.every(function (w) { return /^[A-Z]/.test(w); })) {
+      f.first_name = words[0]; f.last_name = words.slice(1).join(' '); m.first_name = 'check'; m.last_name = 'check';
+      f.rank = r[1]; used[x.i] = 1;
+    }
+  });
+  free.forEach(function (x) {
+    if (!f.agency && AGENCY_RE.test(x.l) && !TITLE_RE.test(x.l.split(' ')[0])) { f.agency = x.l; m.agency = 'check'; used[x.i] = 1; }
+  });
+  free.forEach(function (x) {
+    if (used[x.i]) return;
+    if (!f.title && TITLE_RE.test(x.l) && x.l.split(' ').length <= 7) { f.title = x.l; m.title = 'check'; used[x.i] = 1; }
+    else if (!f.department && DEPT_RE.test(x.l)) { f.department = x.l; m.department = 'check'; used[x.i] = 1; }
+  });
+  free.forEach(function (x) {
+    if (used[x.i] || f.first_name) return;
+    var words = x.l.replace(/[^A-Za-z .'-]/g, '').trim().split(' ').filter(String);
+    if (words.length >= 2 && words.length <= 4 && words.every(function (w) { return /^[A-Z]/.test(w); })) {
+      f.first_name = words[0]; f.last_name = words.slice(1).join(' '); m.first_name = 'check'; m.last_name = 'check'; used[x.i] = 1;
+    }
+  });
+  if (f.rank) { if (!f.title) { f.title = f.rank.replace(/\.$/, '') + '.'; m.title = 'check'; } delete f.rank; }
+  return { fields: f, marks: m };
+}
+function parseVcard(t) {
+  var f = {}, m = {};
+  String(t).split(/\r?\n/).forEach(function (l) {
+    var k = l.split(':')[0].toUpperCase(), v = l.slice(l.indexOf(':') + 1).trim();
+    if (k === 'N') { var n = v.split(';'); f.last_name = n[0]; f.first_name = n[1]; }
+    else if (k.indexOf('FN') === 0 && !f.first_name) { var w = v.split(' '); f.first_name = w[0]; f.last_name = w.slice(1).join(' '); }
+    else if (k.indexOf('ORG') === 0) { var o = v.split(';'); f.agency = o[0]; if (o[1]) f.department = o[1]; }
+    else if (k.indexOf('TITLE') === 0) f.title = v;
+    else if (k.indexOf('EMAIL') === 0) f.work_email = v.toLowerCase();
+    else if (k.indexOf('TEL') === 0) { if (/CELL|MOBILE/.test(k)) f.mobile = v; else if (!f.office_phone) f.office_phone = v; }
+    else if (k.indexOf('URL') === 0) { if (/linkedin/i.test(v)) f.linkedin = v; else f.website = v; }
+    else if (k.indexOf('ADR') === 0) { var a = v.split(';'); if (a[3]) f.city = a[3]; if (a[4]) f.state = a[4].slice(0, 2).toUpperCase(); }
+  });
+  Object.keys(f).forEach(function (k) { if (f[k]) m[k] = 'read'; });
+  return { fields: f, marks: m };
+}
+function parseMecard(t) {
+  var f = {}, m = {};
+  String(t).replace(/^MECARD:/i, '').split(';').forEach(function (p) {
+    var k = p.split(':')[0].toUpperCase(), v = p.slice(p.indexOf(':') + 1);
+    if (k === 'N') { var n = v.split(','); f.last_name = n[0]; f.first_name = n[1] || ''; }
+    else if (k === 'TEL' && !f.mobile) f.mobile = v; else if (k === 'EMAIL') f.work_email = v.toLowerCase();
+    else if (k === 'ORG') f.agency = v; else if (k === 'URL') f.website = v; else if (k === 'TITLE') f.title = v;
+  });
+  Object.keys(f).forEach(function (k) { if (f[k]) m[k] = 'read'; });
+  return { fields: f, marks: m };
+}
+function applyParsed(p) {
+  Object.keys(p.fields).forEach(function (k) { var el = $('cf_' + k); if (el && p.fields[k] && !el.value) el.value = p.fields[k]; });
+  setMarks(p.marks);
+}
+$('cfPasteBtn').addEventListener('click', function () { $('cfPaste').hidden = !$('cfPaste').hidden; $('cfPasteText').focus(); });
+$('cfPasteGo').addEventListener('click', function () {
+  var t = $('cfPasteText').value;
+  applyParsed(/BEGIN:VCARD/i.test(t) ? parseVcard(t) : /^MECARD:/i.test(t.trim()) ? parseMecard(t) : parseCardText(t));
+  $('cfPaste').hidden = true; cMsg('Filled in. Fields marked "check this" were guessed.', true);
+});
+
+// ---- camera: Read Card (auto-capture after 1 second still) and Scan Code ----
+var cam = { stream: null, timer: null, mode: null, last: null, stillSince: 0 };
+function stopCam() {
+  if (cam.timer) clearInterval(cam.timer); cam.timer = null;
+  if (cam.stream) cam.stream.getTracks().forEach(function (t) { t.stop(); }); cam.stream = null;
+  $('camBox').hidden = true;
+}
+function startCam(mode) {
+  cam.mode = mode; cam.last = null; cam.stillSince = 0;
+  $('camTitle').textContent = mode === 'read' ? 'Read Card: hold the card inside the outline' : 'Scan Code: point at the QR code or badge';
+  $('camOutline').hidden = mode !== 'read'; $('camStatus').textContent = 'Starting camera…'; $('camBox').hidden = false;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('camStatus').textContent = 'This browser cannot use the camera. Use Fill In instead.'; return; }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }).then(function (s) {
+    cam.stream = s; var v = $('camVideo'); v.srcObject = s; v.setAttribute('playsinline', ''); return v.play();
+  }).then(function () {
+    $('camStatus').textContent = mode === 'read' ? 'Hold still…' : 'Looking for a code…';
+    if (mode === 'scan') loadScript(JSQR_URL).catch(function () { /* BarcodeDetector may still work */ });
+    cam.timer = setInterval(mode === 'read' ? readTick : scanTick, 250);
+  }).catch(function (e) { $('camStatus').textContent = 'Camera not available: ' + (e.message || e) + '. Use Fill In instead.'; });
+}
+function frameData(w) {
+  var v = $('camVideo'); if (!v.videoWidth) return null;
+  var h = Math.round(w * v.videoHeight / v.videoWidth), c = document.createElement('canvas'); c.width = w; c.height = h;
+  var x = c.getContext('2d'); x.drawImage(v, 0, 0, w, h); return { canvas: c, data: x.getImageData(0, 0, w, h) };
+}
+function readTick() {
+  var f = frameData(64); if (!f) return;
+  var d = f.data.data, sum = 0, gray = new Uint8Array(d.length / 4);
+  for (var i = 0, j = 0; i < d.length; i += 4, j++) gray[j] = (d[i] + d[i + 1] + d[i + 2]) / 3;
+  if (cam.last) { for (var k = 0; k < gray.length; k++) sum += Math.abs(gray[k] - cam.last[k]); sum /= gray.length; }
+  cam.last = gray;
+  if (cam.last && sum && sum < 4) { if (!cam.stillSince) cam.stillSince = Date.now(); else if (Date.now() - cam.stillSince > 1000) captureCard(); }
+  else cam.stillSince = 0;
+}
+$('camCapture').addEventListener('click', function () { if (cam.mode === 'read') captureCard(); });
+$('camCancel').addEventListener('click', stopCam);
+function cardImage(canvas) {
+  var v = $('camVideo'), long = 900, sc = long / Math.max(v.videoWidth, v.videoHeight);
+  var c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * sc); c.height = Math.round(v.videoHeight * sc);
+  c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height);
+  var q = 0.6, url = c.toDataURL('image/jpeg', q);
+  while (url.length > 400 * 1024 * 1.37 && q > 0.2) { q -= 0.1; url = c.toDataURL('image/jpeg', q); }
+  return url;
+}
+function captureCard() {
+  if (cam.timer) clearInterval(cam.timer); cam.timer = null;
+  var v = $('camVideo'), c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext('2d').drawImage(v, 0, 0);
+  cards.image = cardImage(c);
+  $('camStatus').textContent = 'Reading the card… (first time can take a few seconds)';
+  if (cam.stream) cam.stream.getTracks().forEach(function (t) { t.stop(); }); cam.stream = null;
+  loadScript(TESS_URL).then(function () { return window.Tesseract.recognize(c, 'eng'); }).then(function (r) {
+    $('camBox').hidden = true;
+    applyParsed(parseCardText(r.data.text));
+    cMsg('Card read. Check every field; "check this" means it was guessed. The card picture is saved with the card.', true);
+  }).catch(function (e) { $('camBox').hidden = true; cMsg('Could not read the card: ' + (e.message || e) + '. Use Fill In instead.'); });
+}
+function scanTick() {
+  var f = frameData(640); if (!f) return;
+  var done = function (txt) {
+    stopCam();
+    var t = String(txt || '').trim();
+    if (/BEGIN:VCARD/i.test(t)) applyParsed(parseVcard(t));
+    else if (/^MECARD:/i.test(t)) applyParsed(parseMecard(t));
+    else { $('cf_badge_code').value = t; setMarks({ badge_code: 'read' }); }
+    cMsg('Code scanned.', true);
+  };
+  if (window.BarcodeDetector) {
+    if (!cam.bd) try { cam.bd = new window.BarcodeDetector(); } catch (e) { cam.bd = null; }
+    if (cam.bd) { cam.bd.detect(f.canvas).then(function (r) { if (r && r[0] && cam.timer) done(r[0].rawValue); }).catch(function () { }); return; }
+  }
+  if (window.jsQR) { var q = window.jsQR(f.data.data, f.data.width, f.data.height); if (q && q.data) done(q.data); }
+}
+$('cfReadBtn').addEventListener('click', function () { startCam('read'); });
+$('cfScanBtn').addEventListener('click', function () { startCam('scan'); });
+
+// ---- export: only new or changed cards; recorded per person ----
+function vEsc(s) { return String(s || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/([,;])/g, '\\$1'); }
+function toVcf(list) {
+  return list.map(function (c) {
+    var L = ['BEGIN:VCARD', 'VERSION:3.0', 'N:' + vEsc(c.last_name) + ';' + vEsc(c.first_name) + ';;;', 'FN:' + vEsc(cName(c))];
+    if (c.agency || c.department) L.push('ORG:' + vEsc(c.agency) + (c.department ? ';' + vEsc(c.department) : ''));
+    if (c.title) L.push('TITLE:' + vEsc(c.title));
+    if (c.work_email) L.push('EMAIL;TYPE=WORK:' + c.work_email);
+    if (c.mobile) L.push('TEL;TYPE=CELL:' + c.mobile);
+    if (c.office_phone) L.push('TEL;TYPE=WORK:' + c.office_phone + (c.office_ext ? ' x' + c.office_ext : ''));
+    if (c.city || c.state) L.push('ADR;TYPE=WORK:;;;' + vEsc(c.city) + ';' + vEsc(c.state) + ';;');
+    if (c.website) L.push('URL:' + c.website);
+    if (c.linkedin) L.push('URL;TYPE=LinkedIn:' + c.linkedin);
+    L.push('NOTE:' + vEsc(['Reason: ' + c.reason, c.date_met ? 'Met: ' + c.date_met : '', (c.tags || []).length ? 'Tags: ' + c.tags.join(', ') : '', c.badge_code ? 'Badge: ' + c.badge_code : '', c.notes || ''].filter(String).join('. ')));
+    L.push('END:VCARD'); return L.join('\r\n');
+  }).join('\r\n') + '\r\n';
+}
+var CSV_COLS = [['First Name', 'first_name'], ['Last Name', 'last_name'], ['Title', 'title'], ['Agency', 'agency'], ['Department', 'department'], ['Email', 'work_email'],
+  ['Mobile', 'mobile'], ['Office Phone', 'office_phone'], ['Ext', 'office_ext'], ['City', 'city'], ['State', 'state'], ['Website', 'website'], ['LinkedIn', 'linkedin'],
+  ['Badge Code', 'badge_code'], ['Date Met', 'date_met'], ['Reason', 'reason'], ['Tags', 'tags'], ['Notes', 'notes'], ['Saved By', 'created_by_email'], ['Saved At', 'created_at']];
+function toCsv(list) {
+  var q = function (v) { v = Array.isArray(v) ? v.join(', ') : String(v == null ? '' : v); return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+  return [CSV_COLS.map(function (c) { return c[0]; }).join(',')].concat(list.map(function (c) { return CSV_COLS.map(function (k) { return q(c[k[1]]); }).join(','); })).join('\r\n') + '\r\n';
+}
+function download(name, text, type) {
+  var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: type })); a.download = name;
+  document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+function exportNew(kind) {
+  var list = cards.list.filter(cIsNew);
+  if (!list.length) { $('cSummary').textContent = 'Nothing new to export.'; return; }
+  var stamp = todayIso();
+  if (kind === 'vcf') download('Training_Cards_' + stamp + '.vcf', toVcf(list), 'text/vcard');
+  else download('Training_Cards_' + stamp + '.csv', toCsv(list), 'text/csv');
+  var now = new Date().toISOString();
+  sb.from('ts_contact_exports').upsert(list.map(function (c) { return { user_id: me.id, contact_id: c.id, exported_at: now }; })).then(function (r) {
+    if (r.error) { $('cSummary').textContent = 'File made, but the export was not recorded: ' + r.error.message; return; }
+    loadCards();
+  });
+}
+$('cExpVcf').addEventListener('click', function () { exportNew('vcf'); });
+$('cExpCsv').addEventListener('click', function () { exportNew('csv'); });
+$('cBackup').addEventListener('click', function () { download('Training_Cards_Backup_' + todayIso() + '.csv', toCsv(cards.list), 'text/csv'); });
+
+// ---- start tiles: once per browser session after sign-in (also when arriving by Switch App) ----
+var START_KEY = 'ts-start-picked';
+function maybeStartTiles() {
+  var picked = null; try { picked = sessionStorage.getItem(START_KEY); } catch (e) { picked = '1'; }
+  if (!picked) $('startTiles').hidden = false;
+}
+function pickStart(v) {
+  try { sessionStorage.setItem(START_KEY, v); } catch (e) { /* ignore */ }
+  $('startTiles').hidden = true;
+  if (v === 'cards') { var b = document.querySelector('.tab[data-view="cards"]'); if (b) b.click(); }
+}
+$('tileCards').addEventListener('click', function () { pickStart('cards'); });
+$('tileApp').addEventListener('click', function () { pickStart('app'); });
+sb.auth.onAuthStateChange(function (event, session) {
+  if (!session) { cards = { list: [], reasons: [], exp: {}, shares: {}, loaded: false }; $('cardCounts').innerHTML = ''; return; }
+  if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') setTimeout(loadCards, 800);
 });
 })();
