@@ -13,8 +13,29 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SS Training">
-<link rel="stylesheet" href="styles.css?v=2026-11-18a">
+<link rel="stylesheet" href="styles.css?v=2026-11-22a">
 <style>
+.overlay{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.45);overflow:auto;padding:16px}
+.sheet{max-width:860px;margin:0 auto;padding:14px}
+.sheet-head,.sheet-foot,.cf-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sheet-foot{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.cf-tools{margin:10px 0}
+.cf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px 12px}
+.cf-grid label{display:flex;flex-direction:column;font-size:13px;gap:3px}
+.cf-grid .wide{grid-column:1/-1}
+.cf-grid input,.cf-grid select,.cf-grid textarea,#cfPasteText,#cfOtherText{width:100%;box-sizing:border-box}
+.mark{font-size:11px;margin-left:4px}.mark.read{color:var(--c-free)}.mark.check{color:var(--warn)}
+.cf-box{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.cf-img{max-width:100%;margin-top:10px;border-radius:8px;border:1px solid var(--line)}
+.c-row{padding:10px 14px;margin-bottom:8px;cursor:pointer}.c-line1{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cam{display:flex;flex-direction:column;align-items:center;background:#000}
+.cam-wrap{position:relative;width:min(100%,720px)}.cam-wrap video{width:100%;border-radius:8px}
+.cam-outline{position:absolute;left:10%;right:10%;top:50%;aspect-ratio:1.75;transform:translateY(-50%);border:3px dashed #fff;border-radius:10px;pointer-events:none}
+.cam-title,.cam-status{color:#fff;text-align:center;margin:8px}.cam-actions{display:flex;gap:10px}
+.tiles{max-width:560px;margin:15vh auto 0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{display:flex;flex-direction:column;gap:6px;padding:28px 16px;font-size:18px;cursor:pointer;text-align:center}
+#cardCounts .chip{margin-left:4px}
+@media (max-width:600px){.tiles{grid-template-columns:1fr}}
 tr.t-row{cursor:pointer}
 tr.t-row:hover td{background:var(--chip)}
 tr.t-row .tw::before{content:"▸";display:inline-block;width:1.1em;color:var(--muted)}
@@ -137,6 +158,7 @@ details.trainer{padding:0}
     <button class="tab" data-view="completed" role="tab">Completed</button>
     <button class="tab" data-view="trainers" role="tab">Trainers</button>
     <button class="tab" data-view="pm" role="tab">Active PM Projects</button>
+    <button class="tab" data-view="cards" role="tab">Card Reader <span id="cardCounts"></span></button>
     <button class="tab" data-view="users" role="tab" id="usersTab" hidden>Users</button>
     <button type="button" id="helpBtn" class="menu-item">Help</button>
   </nav>
@@ -252,6 +274,83 @@ details.trainer{padding:0}
   <div class="pick-actions"><button type="button" id="pickAll" class="ghost small">Clear all</button><button type="button" id="pickCancel" class="ghost small">Cancel</button><button type="button" id="pickApply" class="primary small">Show</button></div>
 </div>
 
+<!-- CARD READER -->
+<section id="cardsView" class="page" hidden>
+  <div class="filters card">
+    <label class="grow">Search <input id="cSearch" type="search" placeholder="Name, agency, email, tag…"></label>
+    <label>Show <select id="cShow"><option value="all">All cards I can see</option><option value="mine">Cards I saved</option><option value="new">Not exported yet</option></select></label>
+    <button id="cAdd" class="primary">Add Card</button>
+  </div>
+  <div class="summary"><span id="cSummary"></span><span class="spacer"></span>
+    <button id="cExpVcf" class="ghost small">Export new (.vcf)</button>
+    <button id="cExpCsv" class="ghost small">Export new (.csv)</button>
+    <button id="cBackup" class="ghost small" hidden>Backup all</button>
+  </div>
+  <div id="cardList"></div>
+</section>
+
+<div id="cardForm" class="overlay" hidden>
+  <div class="card sheet">
+    <div class="sheet-head"><strong id="cfTitle">Add Card</strong><span class="spacer"></span><button type="button" id="cfCancel" class="ghost small">Close</button></div>
+    <div class="cf-tools">
+      <button type="button" id="cfReadBtn" class="primary small">Read Card</button>
+      <button type="button" id="cfPasteBtn" class="ghost small">Fill In</button>
+      <button type="button" id="cfScanBtn" class="ghost small">Scan Code</button>
+    </div>
+    <div id="cfPaste" hidden><textarea id="cfPasteText" rows="5" placeholder="Paste the text from a card, email signature or vCard"></textarea><button type="button" id="cfPasteGo" class="primary small">Fill In</button></div>
+    <p id="cfMsg" class="msg" role="status"></p>
+    <div class="cf-grid">
+      <label>First name <span class="mark" data-mark="first_name"></span><input id="cf_first_name"></label>
+      <label>Last name <span class="mark" data-mark="last_name"></span><input id="cf_last_name"></label>
+      <label>Title <span class="mark" data-mark="title"></span><input id="cf_title"></label>
+      <label>Agency <span class="mark" data-mark="agency"></span><input id="cf_agency" list="cfAgencies"></label>
+      <label>Department <span class="mark" data-mark="department"></span><input id="cf_department"></label>
+      <label>Work email <span class="mark" data-mark="work_email"></span><input id="cf_work_email" type="email"></label>
+      <label>Mobile <span class="mark" data-mark="mobile"></span><input id="cf_mobile" type="tel"></label>
+      <label>Office phone <span class="mark" data-mark="office_phone"></span><input id="cf_office_phone" type="tel"></label>
+      <label>Ext <span class="mark" data-mark="office_ext"></span><input id="cf_office_ext"></label>
+      <label>City <span class="mark" data-mark="city"></span><input id="cf_city"></label>
+      <label>State <span class="mark" data-mark="state"></span><input id="cf_state" maxlength="2"></label>
+      <label>Website <span class="mark" data-mark="website"></span><input id="cf_website"></label>
+      <label>LinkedIn <span class="mark" data-mark="linkedin"></span><input id="cf_linkedin"></label>
+      <label>Badge code <span class="mark" data-mark="badge_code"></span><input id="cf_badge_code"></label>
+      <label>Date met <span class="mark" data-mark="date_met"></span><input id="cf_date_met" type="date"></label>
+      <label>Reason (required) <select id="cf_reason"></select></label>
+      <label class="wide">Tags (comma between) <input id="cf_tags"></label>
+      <label class="wide">Notes <span class="mark" data-mark="notes"></span><textarea id="cf_notes" rows="3"></textarea></label>
+      <label>Visible to <select id="cf_vis"><option value="everyone">Everyone</option><option value="only_me">Only me</option><option value="selected">Selected users</option></select></label>
+      <label id="cfShareRow" class="wide" hidden>Selected users (emails, comma between) <input id="cf_share"></label>
+    </div>
+    <datalist id="cfAgencies"></datalist>
+    <div id="cfOther" class="cf-box" hidden>Other reason <input id="cfOtherText" maxlength="60">
+      <button type="button" id="cfAddList" class="primary small">Add to the List</button>
+      <button type="button" id="cfUseOnce" class="ghost small">Use Once</button></div>
+    <div id="cfAsk" class="cf-box" hidden>Send Request? Ask to add "<span id="cfAskText"></span>" to everyone's list.
+      <button type="button" id="cfAskYes" class="primary small">Send Request</button>
+      <button type="button" id="cfAskNo" class="ghost small">No</button></div>
+    <div id="cfDup" class="cf-box" hidden><p id="cfDupText"></p><div id="cfDupTable" class="table-wrap"></div>
+      <button type="button" id="cfDupUse" class="ghost small">Use existing</button>
+      <button type="button" id="cfDupUpdate" class="primary small">Update existing</button>
+      <button type="button" id="cfDupNew" class="ghost small">Save as new</button></div>
+    <img id="cfImg" class="cf-img" alt="Card picture" hidden>
+    <div class="sheet-foot"><span id="cfSaved" class="small muted"></span><span class="spacer"></span>
+      <button type="button" id="cfViewImg" class="ghost small" hidden>View Card</button>
+      <button type="button" id="cfDelete" class="ghost small" hidden>Delete</button>
+      <button type="button" id="cfSave" class="primary">Save</button></div>
+  </div>
+</div>
+
+<div id="camBox" class="overlay cam" hidden>
+  <div class="cam-wrap"><video id="camVideo" muted playsinline></video><div id="camOutline" class="cam-outline"></div></div>
+  <p id="camTitle" class="cam-title"></p><p id="camStatus" class="cam-status"></p>
+  <div class="cam-actions"><button type="button" id="camCapture" class="primary">Capture now</button><button type="button" id="camCancel" class="ghost">Cancel</button></div>
+</div>
+
+<div id="startTiles" class="overlay" hidden>
+  <div class="tiles"><button type="button" id="tileCards" class="tile card"><strong>Card Reader</strong><span class="small muted">Read a business card or badge</span></button>
+  <button type="button" id="tileApp" class="tile card"><strong>Training Status</strong><span class="small muted">Trainings, trainers and projects</span></button></div>
+</div>
+
 <!-- HELP: setup instructions and user guide -->
 <main id="helpPage" class="page help" hidden>
   <div class="help-head">
@@ -355,6 +454,19 @@ details.trainer{padding:0}
     <p>Menu, <em>My defaults</em>: your default list order and direction, and whether notes show the newest or oldest entry first. Saved with your account, so they follow you to any device. <em>Reset all</em> returns to these.</p>
   </div></details>
 
+  <details class="card"><summary>Card Reader</summary><div class="help-body">
+    <p>Save the people you meet as cards. Open it from the Menu (<em>Card Reader</em>) or the tile shown after you sign in. The Menu shows <em>N mine</em> (cards you saved and have not exported) and <em>N all</em> (all cards you can see that you have not exported).</p>
+    <ul>
+      <li><strong>Add Card</strong>: <em>Read Card</em> opens the camera; hold the card inside the outline and keep still for a second (or tap <em>Capture now</em>). The text is read on your phone. <em>Fill In</em> reads pasted text (a card, an email signature or a vCard). <em>Scan Code</em> reads a QR code or badge.</li>
+      <li>Fields marked <em>read</em> came straight from the card; <em>check this</em> means it was guessed. Agency is the agency the person works for.</li>
+      <li><strong>Reason</strong> is required. <em>Other…</em>: Training Admins can <em>Add to the List</em> or <em>Use Once</em>; everyone else uses it once and can send a request to add it for everyone.</li>
+      <li><strong>Visible to</strong>: Everyone, Only me, or Selected users (their emails). Only the person who saved a card can change this.</li>
+      <li><strong>Possible duplicates</strong>: use the existing card, update it side by side (tick the fields to take), or save as new.</li>
+      <li><strong>Export new</strong>: only cards that are new or changed since you last exported, as an Apple Contacts file (.vcf) or a spreadsheet (.csv). Your exports are recorded for you only. Training Admins also have <em>Backup all</em>.</li>
+      <li>After <em>Read Card</em> a small picture of the card is kept (<em>View Card</em>). It is removed when the person who saved the card exports it.</li>
+    </ul>
+  </div></details>
+
   <details class="card"><summary>Active PM Projects page</summary><div class="help-body">
     <p>Projects from Travis Pruitt's Current Projects Status Board, copied into the master sheet. One row per project with its state, status and project manager; tap a row for deliverables, date received, account manager, IT staff, trainers, hardware and notes.</p>
     <ul>
@@ -384,6 +496,6 @@ details.trainer{padding:0}
 </main>
 
 <p id="fatal" class="fatal" hidden></p>
-<script src="app.js?v=2026-11-18a"></script>
+<script src="app.js?v=2026-11-22a"></script>
 </body>
 </html>
