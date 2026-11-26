@@ -64,13 +64,13 @@
   }
   function showLogin() { state.access = null; only('loginView'); $('loginForm').hidden = false; $('resetForm').hidden = true; }
   function showReset() { only('loginView'); $('loginForm').hidden = true; $('resetForm').hidden = false; }
-  function gateMsg(html) { only('gateView'); $('gateChoices').hidden = true; $('gateMsg').innerHTML = html; }
+  function gateMsg(html) { only('gateView'); $('gateMsg').innerHTML = html; }
   function choose(app) { try { sessionStorage.setItem(CHOICE_KEY, app); } catch (e) { /* ignore */ } }
   function chosen() { try { return sessionStorage.getItem(CHOICE_KEY); } catch (e) { return null; } }
   function openConference() { choose('conference'); location.href = cfg.CONFERENCE_URL; }
 
-  // Decide which app this person sees: training only -> Training Status;
-  // conference only -> Conference Tracker; both -> landing page to choose.
+  // Decide which app this person sees: anyone with Training Status goes straight in (no app choice on the
+  // training address, Ronnie 11/26); conference only -> Conference Tracker.
   function routeSession(session) {
     $('userEmail').textContent = session.user.email || '';
     $('gateEmail').textContent = session.user.email || '';
@@ -80,10 +80,7 @@
       if (r.error) throw r.error;
       var a = state.access = r.data || {};
       updateSwitch();
-      if (a.training && a.conference) {
-        if (chosen() === 'training') return enterTraining();
-        only('gateView'); $('gateChoices').hidden = false; $('gateMsg').textContent = 'You have access to both apps. Which one do you want to open?';
-      } else if (a.training) {
+      if (a.training) {
         enterTraining();
       } else if (a.conference) {
         gateMsg('Opening Conference Tracker…');
@@ -101,8 +98,6 @@
     if (!state.loaded) loadData();
     maybeStartTiles();
   }
-  $('pickTraining').addEventListener('click', enterTraining);
-  $('pickConference').addEventListener('click', openConference);
   // Switch App: administrators with both apps only; goes straight to the Conference Tracker (Ronnie 11/18).
   $('switchApp').addEventListener('click', function () { openConference(); });
   $('gateSignOut').addEventListener('click', function () { sb.auth.signOut(); });
