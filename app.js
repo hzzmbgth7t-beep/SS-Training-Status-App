@@ -799,6 +799,7 @@ function loadCards() {
 function cardCounts() {
   var n = cards.list.filter(cIsNew), mine = n.filter(function (c) { return c.created_by_email === cMe(); }).length;
   $('cardCounts').innerHTML = (mine ? '<span class="chip">' + mine + ' mine</span>' : '') + (n.length ? '<span class="chip">' + n.length + ' all</span>' : '');
+  $('tileCount').textContent = mine ? mine + ' of yours not exported' : ''; $('tileCount').hidden = !mine;
 }
 function renderCards() {
   var q = $('cSearch').value.trim().toLowerCase(), show = $('cShow').value;
@@ -1221,7 +1222,7 @@ function pickStart(v) {
 $('tileCards').addEventListener('click', function () { pickStart('cards'); });
 $('tileApp').addEventListener('click', function () { pickStart('app'); });
 sb.auth.onAuthStateChange(function (event, session) {
-  if (!session) { cards = { list: [], reasons: [], exp: {}, shares: {}, loaded: false }; $('cardCounts').innerHTML = ''; return; }
+  if (!session) { cards = { list: [], reasons: [], exp: {}, shares: {}, loaded: false }; $('cardCounts').innerHTML = ''; $('tileCount').hidden = true; return; }
   if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') setTimeout(loadCards, 800);
 });
 })();
