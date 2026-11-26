@@ -832,26 +832,56 @@ document.querySelectorAll('.tab').forEach(function (b) {
   });
 });
 
-// ---- form ----
+// ---- form (matches the Conference Tracker's Add Card, v3.8.22; Ronnie 11/26) ----
+var ZXING_URL = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+var GRID_F = ['first_name', 'last_name', 'title', 'agency', 'department', 'work_email', 'mobile', 'office_phone', 'office_ext', 'city', 'state', 'website', 'linkedin'];
+var F_LABEL = { first_name: 'First name', last_name: 'Last name', title: 'Title', agency: 'Agency', department: 'Department', work_email: 'Work email', mobile: 'Mobile phone',
+  office_phone: 'Office phone', office_ext: 'Ext.', city: 'City', state: 'State', website: 'Website', linkedin: 'LinkedIn', badge_code: 'Badge / code', tags: 'Tags' };
+var cf = { editing: null, image: null, reads: [], hideBlank: false, touched: {}, base: '', dupOf: null, saved: false };
 function fillReasons(sel) {
   var list = cards.reasons.slice();
-  if (sel && list.indexOf(sel) < 0) list.push(sel);
-  $('cf_reason').innerHTML = '<option value="">Choose a reason…</option>' + list.map(function (r) { return '<option>' + esc(r) + '</option>'; }).join('') +
+  $('cf_reason').innerHTML = '<option value="">Choose…</option>' + list.map(function (r) { return '<option>' + esc(r) + '</option>'; }).join('') +
+    (sel && list.indexOf(sel) < 0 ? '<option value="' + esc(sel) + '">' + esc(sel) + ' (this card only)</option>' : '') +
     '<option value="__other">Other…</option>';
   $('cf_reason').value = sel || '';
 }
 function agencyList() {
   $('cfAgencies').innerHTML = uniq(state.trainings.map(function (t) { return t.agency_std || t.agency; })).map(function (a) { return '<option value="' + esc(a) + '">'; }).join('');
 }
-function setMarks(marks) {
-  CF.forEach(function (f) {
-    var el = document.querySelector('[data-mark="' + f + '"]'); if (!el) return;
-    var m = marks && marks[f]; el.textContent = m === 'read' ? 'read' : m === 'check' ? 'check this' : ''; el.className = 'mark ' + (m || '');
-  });
+function setMark(f, m) {
+  var el = document.querySelector('[data-mark="' + f + '"]'); if (!el) return;
+  el.textContent = m === 'read' ? 'read' : m === 'check' ? 'check this' : ''; el.className = 'mark ' + (m || '');
 }
-function openCardForm(c, prefill) {
-  cards.editing = c || null; cards.otherReason = null; cards.pendingSave = null;
-  if (!prefill) cards.image = null;
+function setMarks(marks) { CF.forEach(function (f) { setMark(f, marks && marks[f]); }); }
+function formSnapshot() {
+  var o = {}; CF.concat(['tags', 'reason', 'vis', 'share']).forEach(function (k) { var el = $('cf_' + k); o[k] = el ? el.value : ''; }); return JSON.stringify(o);
+}
+function cfDirty() { return !cf.saved && (formSnapshot() !== cf.base || !!$('cfText').value.trim()); }
+function cfShow(which) { $('cfMain').hidden = which !== 'main'; $('cfDupView').hidden = which !== 'dup'; $('cfSavedView').hidden = which !== 'saved'; }
+function cfButtons() {
+  var ok = !!$('cf_reason').value && $('cf_reason').value !== '__other' && (!!$('cf_last_name').value.trim() || !!$('cf_agency').value.trim());
+  $('cfSave').disabled = !ok; $('cfNeeds').hidden = ok;
+  $('cfFillBtn').disabled = !$('cfText').value.trim();
+  $('cfCancel').textContent = cfDirty() ? 'Cancel' : 'Back to Previous Page';
+}
+function cfFieldView() {
+  var hidden = 0, anyVal = false;
+  GRID_F.forEach(function (f) {
+    var v = !!$('cf_' + f).value.trim(); if (v) anyVal = true;
+    var hide = cf.hideBlank && !v && !cf.touched[f]; if (hide) hidden++;
+    var lab = document.querySelector('[data-f="' + f + '"]'); if (lab) lab.hidden = hide;
+  });
+  var t = $('cfFieldsToggle'), marked = !!document.querySelector('#cfGrid .mark.read, #cfGrid .mark.check');
+  if (cf.hideBlank && hidden) { t.hidden = false; t.textContent = 'Show All Fields (' + hidden + ' hidden)'; }
+  else if (!cf.hideBlank && anyVal && marked) { t.hidden = false; t.textContent = 'Hide Blank Fields'; }
+  else t.hidden = true;
+}
+$('cfFieldsToggle').addEventListener('click', function () {
+  if (cf.hideBlank) cf.hideBlank = false; else { cf.touched = {}; cf.hideBlank = true; }
+  cfFieldView();
+});
+function openCardForm(c) {
+  cf = { editing: c || null, image: null, reads: [], hideBlank: false, touched: {}, base: '', dupOf: null, saved: false };
   $('cfTitle').textContent = c ? 'Edit Card' : 'Add Card';
   CF.forEach(function (f) { $('cf_' + f).value = c ? (c[f] == null ? '' : c[f]) : ''; });
   if (!c) $('cf_date_met').value = todayIso();
@@ -862,42 +892,55 @@ function openCardForm(c, prefill) {
   var mine = !c || c.created_by_email === cMe();
   $('cf_vis').disabled = !mine; $('cf_share').disabled = !mine;
   $('cfShareRow').hidden = $('cf_vis').value !== 'selected';
-  $('cfOther').hidden = true; $('cfDup').hidden = true; $('cfPaste').hidden = true; cMsg('');
+  $('cfOther').hidden = true; $('cfAsk').hidden = true; $('cfReasonMsg').hidden = true; cMsg('');
+  $('cfScanBox').hidden = !!c; $('cfText').value = ''; $('cfPicKept').hidden = true; cfBusy('');
   $('cfDelete').hidden = !(c && (c.created_by_email === cMe() || me.admin));
   $('cfViewImg').hidden = !c; $('cfImg').hidden = true; $('cfImg').src = '';
   $('cfSaved').textContent = c ? 'Saved by ' + c.created_by_email + (c.updated_by_email ? ' · last edit ' + c.updated_by_email : '') : '';
+  $('cfSave').textContent = c ? 'Save Changes' : 'Save Card';
   agencyList(); setMarks(null);
-  if (prefill) applyParsed(prefill);
+  cf.base = formSnapshot(); cfFieldView(); cfButtons(); cfShow('main');
   $('cardForm').hidden = false; $('cardForm').scrollTop = 0;
 }
+function closeCardForm() { $('cardForm').hidden = true; $('cfLeave').hidden = true; stopCam(); }
 $('cAdd').addEventListener('click', function () { openCardForm(null); });
-$('cfCancel').addEventListener('click', function () { $('cardForm').hidden = true; stopCam(); });
-$('cf_vis').addEventListener('change', function () { $('cfShareRow').hidden = $('cf_vis').value !== 'selected'; });
-$('cf_reason').addEventListener('change', function () {
-  if ($('cf_reason').value !== '__other') { $('cfOther').hidden = true; return; }
-  $('cfOther').hidden = false; $('cfOtherText').value = ''; $('cfOtherText').focus();
-  $('cfAddList').hidden = !me.admin; $('cfAsk').hidden = true;
+$('cfCancel').addEventListener('click', function () { if (cfDirty()) $('cfLeave').hidden = false; else closeCardForm(); });
+$('cfStay').addEventListener('click', function () { $('cfLeave').hidden = true; });
+$('cfLeaveYes').addEventListener('click', closeCardForm);
+$('cf_vis').addEventListener('change', function () { $('cfShareRow').hidden = $('cf_vis').value !== 'selected'; cfButtons(); });
+$('cfMain').addEventListener('input', function (e) {
+  var id = e.target.id || ''; if (id.indexOf('cf_') === 0) { var f = id.slice(3); setMark(f, null); cf.touched[f] = true; }
+  cfButtons();
 });
+$('cf_reason').addEventListener('change', function () {
+  $('cfAsk').hidden = true; $('cfReasonMsg').hidden = true;
+  if ($('cf_reason').value !== '__other') { $('cfOther').hidden = true; cfButtons(); return; }
+  $('cfOther').hidden = false; $('cfOtherText').value = ''; $('cfOtherText').focus();
+  $('cfAddList').hidden = !me.admin; $('cfUseOnce').className = me.admin ? 'ghost small' : 'primary small'; cfButtons();
+});
+function reasonMsg(t) { $('cfReasonMsg').textContent = t; $('cfReasonMsg').hidden = !t; }
 function useOther(addToList) {
-  var r = $('cfOtherText').value.trim().slice(0, 60);
-  if (!r) { cMsg('Type the other reason first.'); return; }
+  var r = $('cfOtherText').value.trim().replace(/\s+/g, ' ').slice(0, 60);
+  if (!r) { reasonMsg('Type a reason.'); return; }
   if (addToList) {
+    if (cards.reasons.some(function (x) { return x.toLowerCase() === r.toLowerCase(); })) { fillReasons(r); $('cfOther').hidden = true; cfButtons(); return; }
     sb.from('ts_card_reasons').insert({ reason: r, added_by_email: cMe() }).then(function (x) {
-      if (x.error && !/duplicate/i.test(x.error.message)) { cMsg('Not added to the list: ' + x.error.message); return; }
-      if (cards.reasons.indexOf(r) < 0) cards.reasons.push(r);
-      cards.reasons.sort(); fillReasons(r); $('cfOther').hidden = true; cMsg('Added "' + r + '" to the reason list.', true);
+      if (x.error) { reasonMsg('The reason could not be added to the list.'); return; }
+      cards.reasons.push(r); cards.reasons.sort(); fillReasons(r); $('cfOther').hidden = true; reasonMsg('"' + r + '" was added to the Reason list.'); cfButtons();
     });
   } else {
     fillReasons(r); $('cfOther').hidden = true;
     if (!me.admin) { $('cfAskText').textContent = r; $('cfAsk').hidden = false; }
+    cfButtons();
   }
 }
 $('cfAddList').addEventListener('click', function () { useOther(true); });
 $('cfUseOnce').addEventListener('click', function () { useOther(false); });
+$('cfOtherCancel').addEventListener('click', function () { $('cfOther').hidden = true; $('cf_reason').value = ''; cfButtons(); });
 $('cfAskYes').addEventListener('click', function () {
   var r = $('cfAskText').textContent; $('cfAsk').hidden = true;
   sb.from('ts_reason_requests').insert({ reason: r, requested_by_email: cMe() }).then(function (x) {
-    cMsg(x.error ? 'Request not sent: ' + x.error.message : 'Request sent to add "' + r + '" for everyone.', !x.error);
+    reasonMsg(x.error ? 'The request could not be sent.' : 'Request sent. A Training Admin will see it in the Conference Tracker: Admin → Training Status: Card Reader Reasons.');
   });
 });
 $('cfAskNo').addEventListener('click', function () { $('cfAsk').hidden = true; });
@@ -912,252 +955,540 @@ function formValues() {
   o.visibility = $('cf_vis').value;
   return o;
 }
-function findDups(o) {
-  var em = o.work_email, nm = ((o.first_name || '') + ' ' + (o.last_name || '')).trim().toLowerCase(), mob = cDigits(o.mobile);
-  return cards.list.filter(function (c) {
-    return (em && c.work_email === em) || (nm.indexOf(' ') > 0 && cName(c).toLowerCase() === nm) || (mob.length === 10 && cDigits(c.mobile) === mob);
+// Duplicate score (same as the Conference Tracker): 35 or more = possible duplicate.
+function nrm(s) { return String(s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
+function nPhone(s) { return String(s || '').replace(/\D+/g, '').replace(/^1(?=\d{10}$)/, ''); }
+function nUrl(s) { return nrm(s).replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/$/, ''); }
+function dupScore(a, b) {
+  var n = 0;
+  if (a.work_email && nrm(a.work_email) === nrm(b.work_email)) n += 55;
+  var pa = [a.mobile, a.office_phone].map(nPhone).filter(String), pb = [b.mobile, b.office_phone].map(nPhone).filter(String);
+  if (pa.some(function (x) { return pb.indexOf(x) >= 0; })) n += 45;
+  if (a.linkedin && nUrl(a.linkedin) === nUrl(b.linkedin)) n += 50;
+  if (nrm(a.first_name) && nrm(a.last_name) && nrm(a.first_name) === nrm(b.first_name) && nrm(a.last_name) === nrm(b.last_name)) n += 25;
+  if (nrm(a.agency) && nrm(a.agency) === nrm(b.agency)) n += 20;
+  if (nrm(a.city) && nrm(a.city) === nrm(b.city) && nrm(a.state) === nrm(b.state)) n += 10;
+  return n;
+}
+function dupRows(fresh, old) {
+  return GRID_F.concat(['badge_code', 'tags']).map(function (k) {
+    var e = k === 'tags' ? (old.tags || []).join(', ') : String(old[k] == null ? '' : old[k]);
+    var f = k === 'tags' ? (fresh.tags || []).join(', ') : String(fresh[k] == null ? '' : fresh[k]);
+    return { key: k, label: F_LABEL[k], existing: e, fresh: f, ticked: !e.trim() };
+  }).filter(function (r) { return r.fresh.trim() && nrm(r.fresh) !== nrm(r.existing); });
+}
+$('cfSave').addEventListener('click', function () { trySave(false); });
+function trySave(asNew) {
+  var o = formValues(); cMsg('');
+  if (!cf.editing && !asNew) {
+    var best = cards.list.map(function (c) { return [c, dupScore(o, c)]; }).filter(function (x) { return x[1] >= 35; })
+      .sort(function (a, b) { return b[1] - a[1]; })[0];
+    if (best) { showDup(best[0], o); return; }
+  }
+  saveCard(o, cf.editing);
+}
+function saveShares(c, o) {
+  var shareList = $('cf_share').value.split(/[,;\s]+/).map(function (s) { return s.trim().toLowerCase(); }).filter(function (s) { return /@/.test(s); });
+  return sb.from('ts_contact_shares').delete().eq('contact_id', c.id).then(function () {
+    if (o.visibility === 'selected' && shareList.length)
+      return sb.from('ts_contact_shares').insert(shareList.map(function (e) { return { contact_id: c.id, email: e }; }));
   });
 }
-$('cfSave').addEventListener('click', function () {
-  var o = formValues();
-  if (!o.reason) { cMsg('Choose a reason (required).'); return; }
-  if (!o.first_name && !o.last_name && !o.work_email) { cMsg('Add at least a name or an email.'); return; }
-  if (!cards.editing) {
-    var d = findDups(o);
-    if (d.length) { cards.pendingSave = o; showDup(d[0], o); return; }
-  }
-  saveCard(o, cards.editing);
-});
 function saveCard(o, existing) {
-  cMsg('Saving…');
-  var shareList = $('cf_share').value.split(/[,;\s]+/).map(function (s) { return s.trim().toLowerCase(); }).filter(function (s) { return /@/.test(s); });
+  cfBusy('Saving…');
   var p = existing
     ? sb.from('ts_contacts').update(o).eq('id', existing.id).select().single()
     : sb.from('ts_contacts').insert(Object.assign({ created_by_email: cMe() }, o)).select().single();
+  var withPic = false;
   p.then(function (r) {
     if (r.error) throw r.error;
     var c = r.data, jobs = [];
     if (c.created_by_email === cMe()) {
-      jobs.push(sb.from('ts_contact_shares').delete().eq('contact_id', c.id).then(function () {
-        if (o.visibility === 'selected' && shareList.length)
-          return sb.from('ts_contact_shares').insert(shareList.map(function (e) { return { contact_id: c.id, email: e }; }));
-      }));
-      if (cards.image && !existing) jobs.push(sb.from('ts_card_images').insert({ contact_id: c.id, image: cards.image, created_by: cMe() }));
+      jobs.push(saveShares(c, o));
+      if (cf.image && !existing) { withPic = true; jobs.push(sb.from('ts_card_images').insert({ contact_id: c.id, image: cf.image, created_by: cMe() })); }
     }
     return Promise.all(jobs).then(function () { return c; });
-  }).then(function () {
-    cards.image = null; $('cardForm').hidden = true; loadCards();
-  }).catch(function (e) { cMsg('Not saved: ' + (e.message || e)); });
+  }).then(function (c) {
+    cfBusy(''); readFinish(c);
+    showSaved(existing ? 'Card updated.' : withPic ? 'Card saved, with its picture.' : 'Card saved.', c);
+    loadCards();
+  }).catch(function (e) { cfBusy(''); cMsg('The card could not be saved. ' + (e.message || e)); });
 }
-// Possible duplicate: use existing, update side by side, or save as new.
+function showSaved(msg, c) {
+  cf.saved = true; cf.image = null;
+  $('cfSavedMsg').textContent = msg;
+  var line2 = [c.title, c.agency].filter(Boolean).join(' · '), line3 = [c.work_email, c.mobile || c.office_phone].filter(Boolean).join(' · ');
+  $('cfSavedSummary').innerHTML = '<div class="strong">' + esc(cName(c) === '(no name)' ? (c.agency || '') : cName(c)) + '</div>' +
+    (line2 ? '<div class="small muted">' + esc(line2) + '</div>' : '') + (line3 ? '<div class="small muted">' + esc(line3) + '</div>' : '');
+  $('cfTitle').textContent = cf.editing ? 'Edit Card' : 'Add Card';
+  $('cfCancel').textContent = 'Back to Previous Page';
+  cfShow('saved'); $('cardForm').scrollTop = 0;
+}
+$('cfAnother').addEventListener('click', function () { openCardForm(null); });
+$('cfSavedBack').addEventListener('click', closeCardForm);
+// Possible duplicate: side by side, like the Conference Tracker.
 function showDup(c, o) {
-  var rows = CF.concat(['reason']).filter(function (f) { return (o[f] || '') !== (c[f] == null ? '' : String(c[f])) && o[f]; });
-  $('cfDupText').textContent = 'Possible duplicate: ' + cName(c) + (c.agency ? ' (' + c.agency + ')' : '') + ', saved by ' + c.created_by_email + '.';
-  $('cfDupTable').innerHTML = rows.length ? '<table><thead><tr><th>Use new?</th><th>Field</th><th>On file</th><th>New</th></tr></thead><tbody>' +
-    rows.map(function (f) {
-      return '<tr><td><input type="checkbox" data-f="' + f + '"' + (c[f] ? '' : ' checked') + '></td><td>' + esc(f.replace(/_/g, ' ')) + '</td><td>' + esc(c[f] || '') + '</td><td>' + esc(o[f]) + '</td></tr>';
-    }).join('') + '</tbody></table>' : '<p class="small muted">No differences.</p>';
-  cards.dupOf = c; $('cfDup').hidden = false; cMsg('');
+  cf.dupOf = c; cf.dupNew = o;
+  var rows = cf.dupRows = dupRows(o, c);
+  $('cfDupName').textContent = cName(c) === '(no name)' ? (c.agency || '') : cName(c);
+  $('cfDupAgency').textContent = c.agency ? ', ' + c.agency : '';
+  $('cfDupTable').innerHTML = rows.length ? '<table><thead><tr><th>Field</th><th>Existing</th><th>New card</th><th>Update</th></tr></thead><tbody>' +
+    rows.map(function (r) {
+      return '<tr><td class="strong">' + esc(r.label) + '</td><td class="muted">' + (r.existing ? esc(r.existing) : '<em>empty</em>') + '</td><td>' + esc(r.fresh) +
+        '</td><td><input type="checkbox" data-f="' + r.key + '"' + (r.ticked ? ' checked' : '') + '></td></tr>';
+    }).join('') + '</tbody></table>' : '<p class="small muted">The new card has nothing that differs from the existing card.</p>';
+  $('cfDupAll').hidden = !rows.length; $('cfDupUpdate').hidden = !rows.length; $('cfDupMsg').textContent = '';
+  dupTickState(); cfShow('dup'); $('cardForm').scrollTop = 0;
 }
-$('cfDupUse').addEventListener('click', function () { $('cfDup').hidden = true; openCardForm(cards.dupOf); });
-$('cfDupNew').addEventListener('click', function () { $('cfDup').hidden = true; saveCard(cards.pendingSave, null); });
-$('cfDupUpdate').addEventListener('click', function () {
-  var c = cards.dupOf, o = cards.pendingSave, upd = {};
-  $('cfDupTable').querySelectorAll('input[data-f]:checked').forEach(function (i) { upd[i.dataset.f] = o[i.dataset.f]; });
-  if (!Object.keys(upd).length) { cMsg('Tick at least one field to update, or use the existing card.'); return; }
-  sb.from('ts_contacts').update(upd).eq('id', c.id).then(function (r) {
-    if (r.error) { cMsg('Not updated: ' + r.error.message); return; }
-    $('cfDup').hidden = true; $('cardForm').hidden = true; loadCards();
+function dupTickState() { $('cfDupUpdate').disabled = !$('cfDupTable').querySelector('input[data-f]:checked'); }
+$('cfDupTable').addEventListener('change', dupTickState);
+function dupApply(all) {
+  var c = cf.dupOf, upd = {};
+  cf.dupRows.forEach(function (r) {
+    var box = $('cfDupTable').querySelector('input[data-f="' + r.key + '"]');
+    if (all || (box && box.checked)) upd[r.key] = r.key === 'tags' ? cf.dupNew.tags : cf.dupNew[r.key];
   });
-});
+  $('cfDupAll').disabled = $('cfDupUpdate').disabled = true;
+  sb.from('ts_contacts').update(upd).eq('id', c.id).select().single().then(function (r) {
+    $('cfDupAll').disabled = false; dupTickState();
+    if (r.error) { $('cfDupMsg').textContent = 'The card could not be saved.'; return; }
+    readFinish(r.data); showSaved('Existing card updated.', r.data); loadCards();
+  });
+}
+$('cfDupAll').addEventListener('click', function () { dupApply(true); });
+$('cfDupUpdate').addEventListener('click', function () { dupApply(false); });
+$('cfDupUse').addEventListener('click', function () { openCardForm(cf.dupOf); });
+$('cfDupNew').addEventListener('click', function () { cfShow('main'); trySave(true); });
+$('cfDupBack').addEventListener('click', function () { cfShow('main'); });
 $('cfDelete').addEventListener('click', function () {
-  var c = cards.editing; if (!c) return;
+  var c = cf.editing; if (!c) return;
   if (!$('cfDelete').dataset.armed) { $('cfDelete').dataset.armed = '1'; $('cfDelete').textContent = 'Tap again to delete'; return; }
   delete $('cfDelete').dataset.armed; $('cfDelete').textContent = 'Delete';
   sb.from('ts_contacts').delete().eq('id', c.id).then(function (r) {
     if (r.error) { cMsg('Not deleted: ' + r.error.message); return; }
-    $('cardForm').hidden = true; loadCards();
+    closeCardForm(); loadCards();
   });
 });
 $('cfViewImg').addEventListener('click', function () {
-  var c = cards.editing; if (!c) return;
+  var c = cf.editing; if (!c) return;
   sb.from('ts_card_images').select('image').eq('contact_id', c.id).maybeSingle().then(function (r) {
     if (r.error || !r.data) { cMsg('No card picture (it is removed once the saver exports the card).'); return; }
     $('cfImg').src = r.data.image; $('cfImg').hidden = false;
   });
 });
 
-// ---- reading text into fields ----
-var TITLE_RE = /\b(chief|sheriff|deputy|officer|sergeant|sgt|lieutenant|lt|captain|capt|major|colonel|corporal|cpl|detective|investigator|director|manager|coordinator|administrator|supervisor|clerk|analyst|specialist|technician|dispatcher|commander|president|vice|assistant|records|it\b|marshal|warden|jailer|constable)/i;
-var AGENCY_RE = /\b(police|sheriff'?s?|county|department|dept|pd\b|so\b|city of|town of|university|college|campus|911|e-?911|communications|detention|jail|public safety|marshal|state)\b/i;
-var RANK_RE = /^(lt|lieutenant|sgt|sergeant|capt|captain|cpl|corporal|det|detective|chief|major|maj|sheriff|deputy|dep|officer|ofc|col|colonel|investigator|inv)\.?\s+(.+)$/i;
-var DEPT_RE = /\b(division|unit|bureau|section|office of|records|investigations|patrol|support services)\b/i;
-function parseCardText(text) {
-  var f = {}, m = {}, used = {};
-  var lines = String(text || '').split(/\r?\n/).map(function (s) { return s.replace(/\s+/g, ' ').trim(); }).filter(function (s) { return s.length > 1; });
-  var all = lines.join('\n');
-  var em = all.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
-  if (em) { f.work_email = em[0].toLowerCase(); m.work_email = 'read'; }
-  var li = all.match(/(https?:\/\/)?(www\.)?linkedin\.com\/[^\s]+/i);
-  if (li) { f.linkedin = li[0]; m.linkedin = 'read'; }
-  lines.forEach(function (l, i) {
-    if (/@/.test(l) || /linkedin/i.test(l)) { used[i] = 1; return; }
-    var w = l.match(/\b((https?:\/\/)?(www\.)?[a-z0-9-]+\.(com|org|gov|net|us|edu|info|biz)(\/\S*)?)\b/i);
-    if (w && !f.website && !/\d{3}.*\d{4}/.test(l)) { f.website = w[1]; m.website = 'read'; used[i] = 1; }
-    var phoneRe = /(\+?1[\s.-]?)?\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})(\s*(?:x|ext\.?|extension)\s*(\d+))?/gi, p;
-    while ((p = phoneRe.exec(l))) {
-      used[i] = 1;
-      var num = '(' + p[2] + ') ' + p[3] + '-' + p[4];
-      var before = l.slice(Math.max(0, p.index - 12), p.index).toLowerCase();
-      if (/fax|\bf\b/.test(before)) continue;
-      if (/cell|mobile|\bm\b|\bc\b/.test(before) && !f.mobile) { f.mobile = num; m.mobile = 'read'; }
-      else if (!f.office_phone) { f.office_phone = num; m.office_phone = 'read'; if (p[6]) { f.office_ext = p[6]; m.office_ext = 'read'; } }
-      else if (!f.mobile) { f.mobile = num; m.mobile = 'check'; }
-    }
-    var cs = l.match(/^(?:.*?,\s*)?([A-Za-z .'-]+),\s*([A-Z]{2})\.?\s+\d{5}(-\d{4})?$/);
-    if (cs) { f.city = cs[1].trim(); f.state = cs[2]; m.city = 'read'; m.state = 'read'; used[i] = 1; }
-  });
-  var free = lines.map(function (l, i) { return { l: l, i: i }; }).filter(function (x) { return !used[x.i] && !/\d{3}/.test(x.l); });
-  // A rank in front of a name ("Lt. John Smith"): name from the rest, rank as the title if none found.
-  free.forEach(function (x) {
-    var r = x.l.match(RANK_RE); if (!r || f.first_name) return;
-    var words = r[2].replace(/[^A-Za-z .'-]/g, '').trim().split(' ').filter(String);
-    if (words.length >= 2 && words.length <= 4 && words.every(function (w) { return /^[A-Z]/.test(w); })) {
-      f.first_name = words[0]; f.last_name = words.slice(1).join(' '); m.first_name = 'check'; m.last_name = 'check';
-      f.rank = r[1]; used[x.i] = 1;
-    }
-  });
-  free.forEach(function (x) {
-    if (!f.agency && AGENCY_RE.test(x.l) && !TITLE_RE.test(x.l.split(' ')[0])) { f.agency = x.l; m.agency = 'check'; used[x.i] = 1; }
-  });
-  free.forEach(function (x) {
-    if (used[x.i]) return;
-    if (!f.title && TITLE_RE.test(x.l) && x.l.split(' ').length <= 7) { f.title = x.l; m.title = 'check'; used[x.i] = 1; }
-    else if (!f.department && DEPT_RE.test(x.l)) { f.department = x.l; m.department = 'check'; used[x.i] = 1; }
-  });
-  free.forEach(function (x) {
-    if (used[x.i] || f.first_name) return;
-    var words = x.l.replace(/[^A-Za-z .'-]/g, '').trim().split(' ').filter(String);
-    if (words.length >= 2 && words.length <= 4 && words.every(function (w) { return /^[A-Z]/.test(w); })) {
-      f.first_name = words[0]; f.last_name = words.slice(1).join(' '); m.first_name = 'check'; m.last_name = 'check'; used[x.i] = 1;
-    }
-  });
-  if (f.rank) { if (!f.title) { f.title = f.rank.replace(/\.$/, '') + '.'; m.title = 'check'; } delete f.rank; }
-  return { fields: f, marks: m };
+// ---- reading-quality record (admin only to read; like the Conference Tracker's card_reads) ----
+function readStart(source, text, filled) {
+  var f = {}; Object.keys(filled || {}).forEach(function (k) { if (filled[k] != null && String(filled[k]).trim()) f[k] = filled[k]; });
+  sb.rpc('ts_add_card_read', { p_source: source, p_text: String(text || '').slice(0, 8000), p_filled: f }).then(function (r) {
+    if (!r.error && r.data != null) cf.reads.push(r.data);
+  }, function () { /* never blocks the card */ });
 }
-function parseVcard(t) {
-  var f = {}, m = {};
-  String(t).split(/\r?\n/).forEach(function (l) {
-    var k = l.split(':')[0].toUpperCase(), v = l.slice(l.indexOf(':') + 1).trim();
-    if (k === 'N') { var n = v.split(';'); f.last_name = n[0]; f.first_name = n[1]; }
-    else if (k.indexOf('FN') === 0 && !f.first_name) { var w = v.split(' '); f.first_name = w[0]; f.last_name = w.slice(1).join(' '); }
-    else if (k.indexOf('ORG') === 0) { var o = v.split(';'); f.agency = o[0]; if (o[1]) f.department = o[1]; }
-    else if (k.indexOf('TITLE') === 0) f.title = v;
-    else if (k.indexOf('EMAIL') === 0) f.work_email = v.toLowerCase();
-    else if (k.indexOf('TEL') === 0) { if (/CELL|MOBILE/.test(k)) f.mobile = v; else if (!f.office_phone) f.office_phone = v; }
-    else if (k.indexOf('URL') === 0) { if (/linkedin/i.test(v)) f.linkedin = v; else f.website = v; }
-    else if (k.indexOf('ADR') === 0) { var a = v.split(';'); if (a[3]) f.city = a[3]; if (a[4]) f.state = a[4].slice(0, 2).toUpperCase(); }
-  });
-  Object.keys(f).forEach(function (k) { if (f[k]) m[k] = 'read'; });
-  return { fields: f, marks: m };
+function readFinish(c) {
+  var ids = cf.reads; cf.reads = []; if (!ids.length || !c) return;
+  var saved = {}; CF.concat(['reason']).forEach(function (k) { var v = c[k]; if (v != null && String(v).trim()) saved[k] = v; });
+  if (c.tags && c.tags.length) saved.tags = c.tags.join(', ');
+  ids.forEach(function (id) { sb.rpc('ts_finish_card_read', { p_id: id, p_saved: saved, p_contact_id: c.id }).then(function () { }, function () { }); });
 }
-function parseMecard(t) {
-  var f = {}, m = {};
-  String(t).replace(/^MECARD:/i, '').split(';').forEach(function (p) {
-    var k = p.split(':')[0].toUpperCase(), v = p.slice(p.indexOf(':') + 1);
-    if (k === 'N') { var n = v.split(','); f.last_name = n[0]; f.first_name = n[1] || ''; }
-    else if (k === 'TEL' && !f.mobile) f.mobile = v; else if (k === 'EMAIL') f.work_email = v.toLowerCase();
-    else if (k === 'ORG') f.agency = v; else if (k === 'URL') f.website = v; else if (k === 'TITLE') f.title = v;
-  });
-  Object.keys(f).forEach(function (k) { if (f[k]) m[k] = 'read'; });
-  return { fields: f, marks: m };
-}
-function applyParsed(p) {
-  Object.keys(p.fields).forEach(function (k) { var el = $('cf_' + k); if (el && p.fields[k] && !el.value) el.value = p.fields[k]; });
-  setMarks(p.marks);
-}
-$('cfPasteBtn').addEventListener('click', function () { $('cfPaste').hidden = !$('cfPaste').hidden; $('cfPasteText').focus(); });
-$('cfPasteGo').addEventListener('click', function () {
-  var t = $('cfPasteText').value;
-  applyParsed(/BEGIN:VCARD/i.test(t) ? parseVcard(t) : /^MECARD:/i.test(t.trim()) ? parseMecard(t) : parseCardText(t));
-  $('cfPaste').hidden = true; cMsg('Filled in. Fields marked "check this" were guessed.', true);
-});
 
-// ---- camera: Read Card (auto-capture after 1 second still) and Scan Code ----
-var cam = { stream: null, timer: null, mode: null, last: null, stillSince: 0 };
+// ---- reading text into fields (the Conference Tracker's reader, same rules) ----
+var US_ST = 'AL AK AZ AR CA CO CT DE FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY DC'.split(' ');
+var RX_EMAIL = /[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}/g, RX_WEB = /(?:https?:\/\/)?(?:www\.)?[A-Za-z0-9.-]+\.(?:com|org|net|gov|us|edu|info|biz|io|co)(?:\/[^\s,;]*)?/gi,
+  RX_PHONE = /(?:\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4}(?:\s*(?:x|ext\.?|extension)\s*\d+)?/gi;
+function toUrl(e) { var t = e.trim().replace(/[.,;)]+$/, '').replace(/^https?:\/\//i, ''); return 'https://' + (/^www\./i.test(t) || /linkedin\.com/i.test(t) ? t : 'www.' + t); }
+var AG_STRONG = ["sheriff's office", 'sheriffs office', 'sheriff’s office', 'police department', 'police dept', 'county', 'parish', 'city of', 'town of', 'village of', 'e911', 'communications district', 'university', 'college', 'inc', 'llc', 'corporation', 'authority', 'commission', 'association'],
+  AG_WEAK = ['911', 'department', 'office', 'services', 'communications', 'state', 'agency', 'company', 'group', 'solutions', 'district', 'corp', 'police'],
+  DEPT_W = ['division', 'unit', 'bureau', 'section', 'investigations', 'information technology', 'emergency communications', 'operations', 'patrol', 'records division'],
+  TITLE_W = ['sheriff', 'chief', 'captain', 'lieutenant', 'sergeant', 'deputy', 'officer', 'director', 'manager', 'coordinator', 'supervisor', 'president', 'administrator', 'analyst', 'specialist', 'commander', 'major', 'colonel', 'detective', 'investigator', 'dispatcher', 'telecommunicator', 'owner', 'engineer', 'consultant', 'ceo', 'cfo', 'cto', 'technician', 'superintendent', 'clerk', 'marshal', 'trooper', 'agent', 'commissioner', 'executive', 'representative', 'liaison', 'assistant', 'planner', 'chair'];
+function hasW(e, t) { return new RegExp('(^|[^a-z])' + t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + 's?([^a-z]|$)', 'i').test(e); }
+function agScore(e) { return AG_STRONG.reduce(function (t, n) { return t + (hasW(e, n) ? 2 : 0); }, 0) + AG_WEAK.reduce(function (t, n) { return t + (hasW(e, n) ? 1 : 0); }, 0); }
+function tiScore(e) { return TITLE_W.reduce(function (t, n) { return t + (hasW(e, n) ? 2 : 0); }, 0) + (/^(it|sales)\b/i.test(e) ? 1 : 0); }
+function deScore(e) { return DEPT_W.reduce(function (t, n) { return t + (hasW(e, n) ? 2 : 0); }, 0); }
+function capWord(e) { return /^[A-Z][A-Z'’.-]+$/.test(e) && e.length > 1 ? e.toLowerCase().replace(/(^|['’-])([a-z])/g, function (t, n, s) { return n + s.toUpperCase(); }) : e; }
+function fixOcr(e) {
+  var t = '(com|org|net|gov|us|edu|info|biz|io|co)';
+  return e.replace(/([\w.+-])\s*@\s*([\w-]+\.)/g, '$1@$2').replace(/\.(c0m|g0v|0rg|n3t)\b/gi, function (n) { return n.replace(/0/g, 'o').replace(/3/g, 'e'); })
+    .replace(new RegExp('([\\w.+-]+@[\\w-]+(?:\\.[\\w-]+)*)[ ,]+' + t + '\\b', 'gi'), '$1.$2')
+    .replace(new RegExp('\\b(www)\\.?[ ,]+([a-z0-9-]+)\\.?[ ,]+' + t + '\\b', 'gi'), '$1.$2.$3')
+    .replace(new RegExp('\\b(www)[ ,]+([a-z0-9-]+(?:\\.[a-z0-9-]+)*)[ ,]+' + t + '\\b', 'gi'), '$1.$2.$3')
+    .replace(/\b(www)[ ,]+([a-z0-9-]+\.[a-z]{2,})/gi, '$1.$2');
+}
+// Returns { fields, conf } with conf 'High' (read) or 'Check' (check this). Field names here use mobile_phone like the Conference Tracker.
+function parseCardText(text, big) {
+  big = big || [];
+  var n = fixOcr(String(text || '').replace(/\r/g, '')), s = n.split('\n').map(function (P) { return P.trim(); }).filter(Boolean), r = {}, a = {};
+  var o = function (P, B, ne) { if (B && !r[P]) { r[P] = B; a[P] = ne; } };
+  var l = n.match(RX_EMAIL) || [];
+  if (l[0]) o('work_email', l[0].toLowerCase().replace(/^[^a-z0-9]+/, ''), 'High');
+  (n.match(RX_WEB) || []).forEach(function (P) {
+    if (l.some(function (ne) { return ne.toLowerCase().indexOf(P.toLowerCase().replace(/^https?:\/\//, '')) >= 0; })) return;
+    var B = toUrl(P); if (/linkedin\.com/i.test(B)) o('linkedin', B, 'High'); else o('website', B, 'High');
+  });
+  s.forEach(function (P) {
+    (P.match(RX_PHONE) || []).forEach(function (B) {
+      var ie = (P.slice(0, P.indexOf(B)).toLowerCase().match(/([a-z]+)\s*[:.]?\s*$/) || [])[1] || '', le = P.slice(P.indexOf(B) + B.length).toLowerCase(), I = 'office';
+      if (/^(f|fax)$/.test(ie) || /^\s*\(?fax\)?/.test(le)) I = 'fax'; else if (/^(c|m|cell|mobile|cellular)$/.test(ie) || /^\s*\(?(cell|mobile)\)?/.test(le)) I = 'mobile';
+      var ext = (B.match(/(?:x|ext\.?|extension)\s*(\d+)/i) || [])[1] || '', te = B.replace(/\s*(?:x|ext\.?|extension)\s*\d+/i, '').trim();
+      if (I === 'mobile') o('mobile_phone', te, 'High');
+      else if (I === 'office') {
+        if (r.office_phone && !ie && r.office_phone.replace(/\D/g, '') !== te.replace(/\D/g, '')) o('mobile_phone', te, 'Check');
+        else { o('office_phone', te, 'High'); if (ext) o('office_ext', ext, 'High'); }
+      }
+    });
+  });
+  if (!r.office_phone || !r.mobile_phone) s.forEach(function (P) {
+    var B = P.match(/\(?\d{3}\)?[\s.-]?\d{4}[\s.-]\d{4}\b/); if (!B) return;
+    var ne = (P.slice(0, P.indexOf(B[0])).toLowerCase().match(/([a-z]+)\s*[:.]?\s*$/) || [])[1] || '';
+    if (/^(c|m|cell|mobile)$/.test(ne)) o('mobile_phone', B[0], 'Check'); else if (!/^(f|fax)$/.test(ne)) o('office_phone', B[0], 'Check');
+  });
+  var c = function (P) { return /@/.test(P) || new RegExp(RX_PHONE.source, 'i').test(P) || /(www\.|https?:\/\/|\.(com|gov|org|net|us)\b)/i.test(P); };
+  var d = s.filter(c).map(function (P) { return P.split(/\s+(?:office|cell|mobile|phone|direct|main|fax|tel|[pcmfeot]\s*:|\(?\d{3}\)?[\s.-]\d{3})/i)[0].trim(); })
+    .filter(function (P) { return P && !c(P) && /^[A-Z]/.test(P); });
+  var u = s.filter(function (P) { return !c(P); }).concat(d).map(function (P) { return P.replace(/^[A-Z]\s*:\s*/, ''); });
+  var h = /^\d+\s+.*\b(st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|way|ct|court|pkwy|parkway|hwy|highway|pl|place|suite|ste)\b\.?/i,
+    m = /\b(st|street|ave|avenue|rd|road|blvd|boulevard|dr|drive|ln|lane|way|ct|court|pkwy|parkway|hwy|highway|pl|place|suite|ste|west|east|north|south)\b\.?,?\s*/gi;
+  var f = { alabama: 'AL', arkansas: 'AR', florida: 'FL', georgia: 'GA', kentucky: 'KY', louisiana: 'LA', mississippi: 'MS', 'north carolina': 'NC', 'south carolina': 'SC', tennessee: 'TN', texas: 'TX', virginia: 'VA', 'west virginia': 'WV', oklahoma: 'OK', missouri: 'MO', maryland: 'MD', ohio: 'OH', indiana: 'IN', illinois: 'IL', arizona: 'AZ', california: 'CA', colorado: 'CO', nevada: 'NV', 'new mexico': 'NM', pennsylvania: 'PA', 'new york': 'NY', 'new jersey': 'NJ', delaware: 'DE', michigan: 'MI' };
+  var y = Object.keys(f).sort(function (P, B) { return B.length - P.length; }).join('|');
+  var w = s.slice().sort(function (P, B) { return Number(/\d{5}/.test(B)) - Number(/\d{5}/.test(P)); });
+  for (var wi = 0; wi < w.length; wi++) {
+    var B = w[wi].replace(new RegExp('\\b(' + y + ')\\b(?=\\s*\\d{5}|\\s*$)', 'i'), function (ie) { return f[ie.toLowerCase()]; });
+    var ne = B.match(/([A-Za-z .'-]+?),\s*([A-Z]{2})\b\.?(?:\s*(\d{5}(?:-\d{4})?))?/) || B.match(/([A-Za-z .'-]+?)\s+([A-Z]{2})\s+(\d{5})(?:-\d{4})?\b/);
+    if (ne && US_ST.indexOf(ne[2]) >= 0 && agScore(ne[1]) < 2) {
+      var ie = ne[1].replace(/^.*\d+\s+/, ''), le = ie.split(m); ie = le[le.length - 1] || ie;
+      o('city', ie.replace(/^[,\s]+/, '').trim(), 'Check'); o('state', ne[2], 'High'); break;
+    }
+  }
+  var S = u.filter(function (P) { return !h.test(P) && !/^p\.?\s*o\.?\s*box/i.test(P) && (!/,\s*[A-Z]{2}\b/.test(P) || agScore(P) >= 2 && !/\d{5}/.test(P)) && /^[A-Z0-9]/.test(P); });
+  var p = S.map(function (P) { return { l: P, a: agScore(P), t: tiScore(P), d: deScore(P) }; });
+  var g = (p.filter(function (P) { return P.a >= 2 && P.a > P.t && P.d === 0; }).sort(function (P, B) { return B.a - P.a; })[0] || {}).l ||
+    (p.filter(function (P) { return P.a >= 1 && P.t === 0 && P.d === 0; }).sort(function (P, B) { return B.a - P.a; })[0] || {}).l;
+  var v = (p.filter(function (P) { return P.l !== g && P.t > 0 && P.t >= P.a; })[0] || {}).l;
+  var k = (p.filter(function (P) { return P.l !== g && P.l !== v && P.d > 0; })[0] || {}).l;
+  var T = /^([A-Z][A-Za-z'’.-]*)(\s+[A-Z][A-Za-z'’.-]*){1,3}(,?\s+[A-Z][A-Za-z.]{1,6})?$/, used = [g, v, k];
+  var N = S.filter(function (P) { return used.indexOf(P) < 0 && T.test(P.replace(/,\s*[A-Za-z.]+$/, '').trim()) && agScore(P) === 0 && tiScore(P) === 0 && deScore(P) === 0; });
+  var L = (r.work_email || '').split('@')[0].replace(/[^a-z]/g, '');
+  var Y = function (P) { var Bq = P.toLowerCase().replace(/[^a-z]/g, ''); return !!L && Bq.length >= 3 && L.indexOf(Bq) >= 0; };
+  var W = function (P) { return P.replace(/,.*$/, '').split(/\s+/).slice(1).some(Y); };
+  var H = N.filter(W)[0] || N.filter(function (P) { return big.some(function (Bq) { return Bq.trim() === P; }); })[0] || N[0];
+  if (H) {
+    var Pn = H.replace(/,.*$/, '').split(/\s+/).filter(function (x) { return /^[A-Z]/.test(x) && !/^(mr|mrs|ms|dr|rev)\.?$/i.test(x); }).map(capWord);
+    var conf = W(H) ? 'High' : 'Check', ni = -1;
+    Pn.forEach(function (x, i) { if (ni < 0 && i > 0 && Y(x)) ni = i; });
+    if (Pn.length >= 2) { o('first_name', Pn[0], conf); o('last_name', Pn[ni > 0 ? ni : Pn.length - 1], conf); }
+    else if (Pn.length === 1) o('last_name', Pn[0], 'Check');
+  }
+  if (!r.last_name && /^[a-z]{4,}$/.test(L)) {
+    var cl = function (I) { return I.replace(/[^A-Za-z'’-]/g, ''); };
+    var Bw = [].concat.apply([], u.map(function (I) { return I.split(/\s+/); })).map(cl).filter(function (I) { return I.length >= 2; });
+    var nw = Bw.filter(function (I) { return I.length >= 3 && L.slice(-I.toLowerCase().replace(/[^a-z]/g, '').length) === I.toLowerCase().replace(/[^a-z]/g, '') && L.length - I.replace(/[^A-Za-z]/g, '').length <= 2; })[0];
+    var lastN = nw ? capWord(nw) : L.slice(1, 2).toUpperCase() + L.slice(2);
+    o('last_name', lastN, 'Check');
+    var fw = Bw.filter(function (I) { return /^[A-Z][a-z]{1,}$/.test(I) && I[0].toLowerCase() === L[0] && used.indexOf(I) < 0 && I !== lastN && agScore(I) === 0 && tiScore(I) === 0; })[0];
+    if (fw) o('first_name', fw, 'Check');
+  }
+  if (v) o('title', v, 'Check');
+  var small = ['of', 'and', 'the', 'for', 'at', 'in', 'on'];
+  if (g) o('agency', (function (P) {
+    return /[a-z]/.test(P) ? P : P.toLowerCase().split(' ').map(function (Bq, ni2) { return ni2 > 0 && small.indexOf(Bq) >= 0 ? Bq : Bq.replace(/(^|['’-])([a-z])/g, function (x, le2, I) { return le2 + I.toUpperCase(); }); }).join(' ');
+  })(g.replace(/,\s*[A-Z]{2}\.?$/, '')), 'Check');
+  if (k) o('department', k, 'Check');
+  if (r.work_email && r.first_name && r.last_name) {
+    var parts = r.work_email.split('@'), ln = r.last_name.toLowerCase().replace(/[^a-z]/g, '');
+    if (parts[0].length === ln.length + 1 && parts[0].slice(1) === ln && /[il1|]/.test(parts[0][0])) r.work_email = r.first_name[0].toLowerCase() + ln + '@' + parts[1];
+  }
+  if (!r.website && r.work_email) {
+    var dom = r.work_email.split('@')[1] || '';
+    if (dom && !/(gmail|yahoo|outlook|hotmail|aol|icloud)\./i.test(dom)) o('website', toUrl(dom), 'Check');
+  }
+  return { fields: r, conf: a };
+}
+// QR / badge text: vCard, MeCard, a link, or a plain code (kept in Badge / code).
+function parseCode(e) {
+  var t = String(e || '').trim(), n = {}, s = {}, r = function (k, v) { var l = String(v || '').trim(); if (l && !n[k]) { n[k] = l; s[k] = 'High'; } };
+  if (/^BEGIN:VCARD/i.test(t)) {
+    t.replace(/\r?\n[ \t]/g, '').split(/\r?\n/).forEach(function (line) {
+      var i = line.indexOf(':'); if (i < 0) return;
+      var key = line.slice(0, i).toUpperCase(), d = line.slice(i + 1).replace(/\\,/g, ',').replace(/\\;/g, ';').replace(/\\n/gi, ' '), u = key.split(';')[0], x;
+      if (u === 'N') { x = d.split(';'); r('last_name', x[0]); r('first_name', x[1]); }
+      else if (u === 'FN' && !n.last_name) { x = d.split(/\s+/); if (x.length > 1) { r('first_name', x[0]); r('last_name', x[x.length - 1]); } else r('last_name', d); }
+      else if (u === 'TITLE') r('title', d);
+      else if (u === 'ORG') { x = d.split(';'); r('agency', x[0]); r('department', x[1]); }
+      else if (u === 'EMAIL') r('work_email', d.toLowerCase());
+      else if (u === 'TEL') { if (/CELL|MOBILE/.test(key)) r('mobile_phone', d); else if (!/FAX/.test(key)) r('office_phone', d); }
+      else if (u === 'URL') { if (/linkedin\.com/i.test(d)) r('linkedin', toUrl(d)); else r('website', toUrl(d)); }
+      else if (u === 'ADR') { x = d.split(';'); r('city', x[3]); r('state', (x[4] || '').toUpperCase().slice(0, 2)); }
+    });
+    return { fields: n, conf: s, kind: 'contact' };
+  }
+  if (/^MECARD:/i.test(t)) {
+    t.slice(7).split(/(?<!\\);/).forEach(function (p) {
+      var i = p.indexOf(':'); if (i < 0) return;
+      var key = p.slice(0, i).toUpperCase(), v = p.slice(i + 1).replace(/\\(.)/g, '$1'), x;
+      if (key === 'N') { x = v.split(','); r('last_name', x[0]); r('first_name', x[1]); }
+      else if (key === 'ORG') r('agency', v); else if (key === 'TITLE') r('title', v); else if (key === 'TEL') r('office_phone', v);
+      else if (key === 'EMAIL') r('work_email', v.toLowerCase()); else if (key === 'URL') r('website', toUrl(v));
+    });
+    return { fields: n, conf: s, kind: 'contact' };
+  }
+  if (/^https?:\/\//i.test(t) && !/\s/.test(t)) { if (/linkedin\.com/i.test(t)) r('linkedin', t); else r('website', t); return { fields: n, conf: s, kind: 'link' }; }
+  r('badge_code', t.slice(0, 500)); return { fields: n, conf: s, kind: 'code' };
+}
+function toOurs(p) {
+  var f = {}, m = {};
+  Object.keys(p.fields).forEach(function (k) { var o = k === 'mobile_phone' ? 'mobile' : k; f[o] = p.fields[k]; m[o] = p.conf[k] === 'High' ? 'read' : 'check'; });
+  return { fields: f, marks: m };
+}
+// Fill only empty fields; mark each "read" or "check this"; then show only the filled fields.
+function applyParsed(p) {
+  var q = toOurs(p), any = false;
+  Object.keys(q.fields).forEach(function (k) {
+    var el = $('cf_' + k); if (!el || !q.fields[k]) return;
+    any = true;
+    if (!el.value.trim()) { el.value = q.fields[k]; setMark(k, q.marks[k]); }
+  });
+  if (any) cf.hideBlank = true;
+  cfFieldView(); cfButtons();
+  return q;
+}
+function cfBusy(t) { $('cfBusy').textContent = t || ''; $('cfBusy').hidden = !t; $('cfReadBtn').disabled = $('cfScanBtn').disabled = !!t; }
+$('cfText').addEventListener('input', cfButtons);
+$('cfFillBtn').addEventListener('click', function () {
+  var t = $('cfText').value; if (!t.trim()) return;
+  var p = parseCardText(t); applyParsed(p); readStart('text', t, toOurs(p).fields);
+});
+function readDone(res) {
+  $('cfText').value = ($('cfText').value ? $('cfText').value + '\n' : '') + res.text;
+  var p = parseCardText(res.all, res.big); applyParsed(p); readStart('card', res.all, toOurs(p).fields);
+}
+
+// ---- pictures: find the card, clean it up, read it twice (same as the Conference Tracker) ----
+function fileToCanvas(file, maxW) {
+  maxW = maxW || 1600;
+  return new Promise(function (ok, bad) {
+    var url = URL.createObjectURL(file), im = new Image();
+    im.onload = function () {
+      var r = Math.min(1, maxW / im.naturalWidth), c = document.createElement('canvas');
+      c.width = Math.round(im.naturalWidth * r); c.height = Math.round(im.naturalHeight * r);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); URL.revokeObjectURL(url); ok(c);
+    };
+    im.onerror = function () { URL.revokeObjectURL(url); bad(new Error('unreadable picture')); };
+    im.src = url;
+  });
+}
+function findCard(e, t, n) { // bright, low-colour area
+  var s = new Uint8Array(t * n), c, d, u;
+  for (c = 0; c < t * n; c++) { var R = e[c * 4], G = e[c * 4 + 1], B = e[c * 4 + 2], lum = .299 * R + .587 * G + .114 * B, sat = Math.max(R, G, B) - Math.min(R, G, B); s[c] = lum > 170 && sat < 40 ? 1 : 0; }
+  var r = -1, a = -1;
+  for (c = 0; c < n; c++) { d = 0; for (u = 0; u < t; u++) d += s[c * t + u]; if (d / t > .25) { if (r < 0) r = c; a = c; } }
+  if (r < 0) return null;
+  var o = -1, l = -1;
+  for (c = 0; c < t; c++) { d = 0; for (u = r; u <= a; u++) d += s[u * t + c]; if (d / (a - r + 1) > .35) { if (o < 0) o = c; l = c; } }
+  return o < 0 || (l - o) * (a - r) < .08 * t * n ? null : { x0: o, y0: r, x1: l, y1: a };
+}
+function cleanForOcr(e, target) { // grey, evens out shadow and glare, light-on-dark turned dark-on-light
+  var sc = Math.max(.5, Math.min(2.5, target / Math.max(1, e.width))), r = document.createElement('canvas');
+  r.width = Math.max(1, Math.round(e.width * sc)); r.height = Math.max(1, Math.round(e.height * sc));
+  var a = r.getContext('2d', { willReadFrequently: true }); a.imageSmoothingEnabled = true; a.imageSmoothingQuality = 'high';
+  a.drawImage(e, 0, 0, r.width, r.height); e.width = 0; e.height = 0;
+  var o = r.width, l = r.height, img = a.getImageData(0, 0, o, l), d = img.data, u = new Float32Array(o * l), i, x, yy, X, Y;
+  for (i = 0; i < o * l; i++) u[i] = .299 * d[i * 4] + .587 * d[i * 4 + 1] + .114 * d[i * 4 + 2];
+  var h = Math.max(8, Math.round(o / 40)), m = Math.ceil(o / h), f = Math.ceil(l / h), mx = new Float32Array(m * f), mn = new Float32Array(m * f), av = new Float32Array(m * f);
+  for (yy = 0; yy < f; yy++) for (x = 0; x < m; x++) {
+    var hi = 0, lo = 255, sum = 0, cnt = 0;
+    for (Y = yy * h; Y < Math.min(l, (yy + 1) * h); Y += 2) for (X = x * h; X < Math.min(o, (x + 1) * h); X += 2) { var P = u[Y * o + X]; if (P > hi) hi = P; if (P < lo) lo = P; sum += P; cnt++; }
+    mx[yy * m + x] = hi; mn[yy * m + x] = lo; av[yy * m + x] = cnt ? sum / cnt : 255;
+  }
+  var dark = new Uint8Array(m * f); for (i = 0; i < m * f; i++) dark[i] = av[i] < 105 ? 1 : 0;
+  var bg = new Float32Array(m * f);
+  for (yy = 0; yy < f; yy++) for (x = 0; x < m; x++) {
+    var me2 = yy * m + x, L = dark[me2] ? 255 : 0;
+    for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+      var H = yy + dy, D = x + dx; if (H < 0 || D < 0 || H >= f || D >= m) continue;
+      var V = H * m + D; if (dark[V] === dark[me2]) L = dark[me2] ? Math.min(L, mn[V]) : Math.max(L, mx[V]);
+    }
+    bg[me2] = L;
+  }
+  var lerp = function (arr, px, py) {
+    var Yf = Math.min(m - 1, Math.max(0, px / h - .5)), Wf = Math.min(f - 1, Math.max(0, py / h - .5)), H0 = Math.floor(Yf), D0 = Math.floor(Wf),
+      V1 = Math.min(m - 1, H0 + 1), P1 = Math.min(f - 1, D0 + 1), Bx = Yf - H0, ny = Wf - D0;
+    return (arr[D0 * m + H0] * (1 - Bx) + arr[D0 * m + V1] * Bx) * (1 - ny) + (arr[P1 * m + H0] * (1 - Bx) + arr[P1 * m + V1] * Bx) * ny;
+  };
+  for (Y = 0; Y < l; Y++) for (X = 0; X < o; X++) {
+    var k = Y * o + X, cx = Math.min(m - 1, Math.floor(X / h)), cy = Math.min(f - 1, Math.floor(Y / h)), Hb = lerp(bg, X, Y), val;
+    if (dark[cy * m + cx]) { var Dd = 255 - Hb; val = Dd > 20 ? Math.min(255, (255 - u[k]) / Dd * 255) : 255; }
+    else val = Hb > 20 ? Math.min(255, u[k] / Hb * 255) : u[k];
+    d[k * 4] = d[k * 4 + 1] = d[k * 4 + 2] = val; d[k * 4 + 3] = 255;
+  }
+  a.putImageData(img, 0, 0); return r;
+}
+function ocrLines(res, minConf, gap) { // drop words under minConf; split lines with a wide gap; note the largest text
+  gap = gap || 1.2;
+  var lines = (res.data && res.data.lines) || [];
+  if (!lines.length) return { text: (res.data && res.data.text) || '', big: [] };
+  var ok = function (w) { return w.confidence >= minConf && /[A-Za-z0-9]/.test(w.text) && (w.text.length >= 2 || /\d/.test(w.text)); }, out = [];
+  lines.forEach(function (ln) {
+    var ws = (ln.words || []).filter(ok).sort(function (p, q) { return ((p.bbox && p.bbox.x0) || 0) - ((q.bbox && q.bbox.x0) || 0); });
+    if (!ws.length) return;
+    var hs = ws.map(function (w) { return w.bbox ? w.bbox.y1 - w.bbox.y0 : 0; }).sort(function (p, q) { return p - q; }), med = hs[Math.floor(hs.length / 2)] || 0, cur = [];
+    var flush = function () { if (cur.length) out.push({ text: cur.map(function (w) { return w.text; }).join(' '), h: med }); cur = []; };
+    ws.forEach(function (w, i) { var pw = ws[i - 1]; if (pw && pw.bbox && w.bbox && med && w.bbox.x0 - pw.bbox.x1 > gap * med) flush(); cur.push(w); });
+    flush();
+  });
+  return { text: out.map(function (x) { return x.text; }).join('\n'), big: out.slice().sort(function (p, q) { return q.h - p.h; }).slice(0, 3).map(function (x) { return x.text; }) };
+}
+function readCanvas(cv) { // read twice: about 1800 and 1100 px wide
+  return loadScript(TESS_URL).then(function () {
+    var T = window.Tesseract; if (!T) throw new Error('reader not available');
+    var copy = document.createElement('canvas'); copy.width = cv.width; copy.height = cv.height; copy.getContext('2d').drawImage(cv, 0, 0);
+    var res = [], passes = [[cv, 1800], [copy, 1100]];
+    return passes.reduce(function (pr, ps) {
+      return pr.then(function () {
+        var c = cleanForOcr(ps[0], ps[1]);
+        return T.recognize(c, 'eng').then(function (r) { res.push(ocrLines(r, 40)); c.width = 0; c.height = 0; });
+      });
+    }, Promise.resolve()).then(function () {
+      return { text: res[0].text || res[1].text, all: res.map(function (x) { return x.text; }).join('\n'), big: res[1].big.concat(res[0].big) };
+    });
+  });
+}
+function readPictureFile(file) { // picture route: find the card first
+  return fileToCanvas(file, 2400).then(function (cv) {
+    var b = findCard(cv.getContext('2d', { willReadFrequently: true }).getImageData(0, 0, cv.width, cv.height).data, cv.width, cv.height);
+    if (!b) return readCanvas(cv);
+    var c = document.createElement('canvas'); c.width = b.x1 - b.x0 + 1; c.height = b.y1 - b.y0 + 1;
+    c.getContext('2d').drawImage(cv, b.x0, b.y0, c.width, c.height, 0, 0, c.width, c.height); cv.width = 0; cv.height = 0;
+    return readCanvas(c);
+  });
+}
+function smallPicture(src) { // kept with the card: long side 900 px, JPEG 0.6 (0.4 if over 400 KB)
+  var draw = function (w, h, fn) {
+    if (!w || !h) return null;
+    var r = Math.min(1, 900 / Math.max(w, h)), c = document.createElement('canvas'); c.width = Math.round(w * r); c.height = Math.round(h * r);
+    fn(c.getContext('2d'), c.width, c.height);
+    var u = c.toDataURL('image/jpeg', .6); return u.length <= 4e5 ? u : c.toDataURL('image/jpeg', .4);
+  };
+  if (src instanceof HTMLCanvasElement) return Promise.resolve(draw(src.width, src.height, function (x, w, h) { x.drawImage(src, 0, 0, w, h); }));
+  return new Promise(function (ok) {
+    var url = URL.createObjectURL(src), im = new Image();
+    im.onload = function () { ok(draw(im.naturalWidth, im.naturalHeight, function (x, w, h) { x.drawImage(im, 0, 0, w, h); })); setTimeout(function () { URL.revokeObjectURL(url); }, 1000); };
+    im.onerror = function () { ok(null); }; im.src = url;
+  });
+}
+function keepPicture(p) { p.then(function (u) { if (u) { cf.image = u; $('cfPicKept').hidden = false; } }, function () { }); }
+$('cfReadFile').addEventListener('change', function () {
+  var file = this.files && this.files[0]; if (!file) return;
+  cMsg(''); cfBusy('Reading the card on this device…');
+  var pic = smallPicture(file);
+  readPictureFile(file).then(function (res) { readDone(res); keepPicture(pic); })
+    .catch(function () { cMsg('The card could not be read. Try again, or type it.'); })
+    .then(function () { cfBusy(''); $('cfReadFile').value = ''; });
+});
+function readCaptured(canvas) {
+  cMsg(''); cfBusy('Reading the card on this device…');
+  var pic = smallPicture(canvas);
+  pic.then(function () { return readCanvas(canvas); }).then(function (res) { readDone(res); keepPicture(pic); })
+    .catch(function () { cMsg('The card could not be read. Try again, or type it.'); })
+    .then(function () { cfBusy(''); });
+}
+// Scan Code: a picture of the QR code or badge, read with ZXing (try harder).
+$('cfScanFile').addEventListener('change', function () {
+  var file = this.files && this.files[0]; if (!file) return;
+  cMsg(''); cfBusy('Reading the code on this device…');
+  loadScript(ZXING_URL).then(function () {
+    var Z = window.ZXing; if (!Z) throw new Error('reader not available');
+    return fileToCanvas(file, 2000).then(function (cv) {
+      var hints = new Map(); hints.set(Z.DecodeHintType.TRY_HARDER, true);
+      var rd = new Z.MultiFormatReader(); rd.setHints(hints);
+      return String(rd.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(cv)))).getText() || '');
+    });
+  }).then(function (txt) {
+    var p = parseCode(txt); applyParsed(p); readStart('code', txt, toOurs(p).fields);
+    if (p.kind === 'code') cMsg('The code holds no contact details; it was kept in Badge / code.', true);
+  }).catch(function () { cMsg('No code was found in that picture. Try again closer and in good light.'); })
+    .then(function () { cfBusy(''); $('cfScanFile').value = ''; });
+});
+$('cfScanBtn').addEventListener('click', function () { $('cfScanFile').click(); });
+
+// ---- camera screen: card outline, auto-capture, green lock (same as the Conference Tracker) ----
+var cam = { stream: null, timer: null, done: false, state: 'starting', holding: false };
 function stopCam() {
   if (cam.timer) clearInterval(cam.timer); cam.timer = null;
   if (cam.stream) cam.stream.getTracks().forEach(function (t) { t.stop(); }); cam.stream = null;
   $('camBox').hidden = true;
 }
-function startCam(mode) {
-  cam.mode = mode; cam.last = null; cam.stillSince = 0;
-  $('camTitle').textContent = mode === 'read' ? 'Read Card: hold the card inside the outline' : 'Scan Code: point at the QR code or badge';
-  $('camOutline').hidden = mode !== 'read'; $('camStatus').textContent = 'Starting camera…'; $('camBox').hidden = false;
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { $('camStatus').textContent = 'This browser cannot use the camera. Use Fill In instead.'; return; }
-  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }).then(function (s) {
-    cam.stream = s; var v = $('camVideo'); v.srcObject = s; v.setAttribute('playsinline', ''); return v.play();
-  }).then(function () {
-    $('camStatus').textContent = mode === 'read' ? 'Hold still…' : 'Looking for a code…';
-    if (mode === 'scan') loadScript(JSQR_URL).catch(function () { /* BarcodeDetector may still work */ });
-    cam.timer = setInterval(mode === 'read' ? readTick : scanTick, 250);
-  }).catch(function (e) { $('camStatus').textContent = 'Camera not available: ' + (e.message || e) + '. Use Fill In instead.'; });
+function camHint() {
+  $('camHint').textContent = cam.state === 'starting' ? 'Starting the camera…' : cam.state === 'ready'
+    ? (cam.holding ? 'Hold still…' : 'Fill the outline with the card and hold still. It takes the picture by itself, or tap Capture.') : '';
+  $('camOutline').classList.toggle('hold', cam.holding);
+  $('camBox').toggleAttribute('data-holding', cam.holding);
+  $('camFailed').hidden = cam.state !== 'failed'; $('camCapture').disabled = cam.state !== 'ready';
 }
-function frameData(w) {
-  var v = $('camVideo'); if (!v.videoWidth) return null;
-  var h = Math.round(w * v.videoHeight / v.videoWidth), c = document.createElement('canvas'); c.width = w; c.height = h;
-  var x = c.getContext('2d'); x.drawImage(v, 0, 0, w, h); return { canvas: c, data: x.getImageData(0, 0, w, h) };
+function hasLiveCamera() { return !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia); }
+function startCam() {
+  cam = { stream: null, timer: null, done: false, state: 'starting', holding: false };
+  $('camBox').hidden = false; camHint();
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 3840 }, height: { ideal: 2160 } }, audio: false }).then(function (s) {
+    if (cam.done || $('camBox').hidden) { s.getTracks().forEach(function (t) { t.stop(); }); return; }
+    cam.stream = s;
+    var tr = s.getVideoTracks()[0];
+    try { var caps = (tr.getCapabilities && tr.getCapabilities()) || {}; if (caps.focusMode && caps.focusMode.indexOf('continuous') >= 0) tr.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(function () { }); } catch (e) { /* ignore */ }
+    var v = $('camVideo'); v.srcObject = s;
+    return v.play().catch(function () { }).then(function () { cam.state = 'ready'; camHint(); camWatch(); });
+  }).catch(function () { cam.state = 'failed'; camHint(); });
 }
-function readTick() {
-  var f = frameData(64); if (!f) return;
-  var d = f.data.data, sum = 0, gray = new Uint8Array(d.length / 4);
-  for (var i = 0, j = 0; i < d.length; i += 4, j++) gray[j] = (d[i] + d[i + 1] + d[i + 2]) / 3;
-  if (cam.last) { for (var k = 0; k < gray.length; k++) sum += Math.abs(gray[k] - cam.last[k]); sum /= gray.length; }
-  cam.last = gray;
-  if (cam.last && sum && sum < 4) { if (!cam.stillSince) cam.stillSince = Date.now(); else if (Date.now() - cam.stillSince > 1000) captureCard(); }
-  else cam.stillSince = 0;
+function camRect() { // the outline, in video pixels (video fills the screen, cropped)
+  var v = $('camVideo'), o = $('camOutline'); if (!v.videoWidth) return null;
+  var S = v.getBoundingClientRect(), p = o.getBoundingClientRect(), g = Math.max(S.width / v.videoWidth, S.height / v.videoHeight),
+    ox = (S.width - v.videoWidth * g) / 2, oy = (S.height - v.videoHeight * g) / 2;
+  return { v: v, x: (p.left - S.left - ox) / g, y: (p.top - S.top - oy) / g, w: p.width / g, h: p.height / g };
 }
-$('camCapture').addEventListener('click', function () { if (cam.mode === 'read') captureCard(); });
-$('camCancel').addEventListener('click', stopCam);
-function cardImage(canvas) {
-  var v = $('camVideo'), long = 900, sc = long / Math.max(v.videoWidth, v.videoHeight);
-  var c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * sc); c.height = Math.round(v.videoHeight * sc);
-  c.getContext('2d').drawImage(canvas, 0, 0, c.width, c.height);
-  var q = 0.6, url = c.toDataURL('image/jpeg', q);
-  while (url.length > 400 * 1024 * 1.37 && q > 0.2) { q -= 0.1; url = c.toDataURL('image/jpeg', q); }
-  return url;
+function camCapture() {
+  if (cam.done) return;
+  var R = camRect(); if (!R) return;
+  var v = R.v, x = Math.max(0, R.x), y = Math.max(0, R.y), w = Math.min(v.videoWidth - x, R.w), h = Math.min(v.videoHeight - y, R.h);
+  var c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w)); c.height = Math.max(1, Math.round(h));
+  c.getContext('2d').drawImage(v, x, y, w, h, 0, 0, c.width, c.height);
+  cam.done = true; stopCam(); readCaptured(c);
 }
-function captureCard() {
-  if (cam.timer) clearInterval(cam.timer); cam.timer = null;
-  var v = $('camVideo'), c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
-  c.getContext('2d').drawImage(v, 0, 0);
-  cards.image = cardImage(c);
-  $('camStatus').textContent = 'Reading the card… (first time can take a few seconds)';
-  if (cam.stream) cam.stream.getTracks().forEach(function (t) { t.stop(); }); cam.stream = null;
-  loadScript(TESS_URL).then(function () { return window.Tesseract.recognize(c, 'eng'); }).then(function (r) {
-    $('camBox').hidden = true;
-    applyParsed(parseCardText(r.data.text));
-    cMsg('Card read. Check every field; "check this" means it was guessed. The card picture is saved with the card.', true);
-  }).catch(function (e) { $('camBox').hidden = true; cMsg('Could not read the card: ' + (e.message || e) + '. Use Fill In instead.'); });
-}
-function scanTick() {
-  var f = frameData(640); if (!f) return;
-  var done = function (txt) {
-    stopCam();
-    var t = String(txt || '').trim();
-    if (/BEGIN:VCARD/i.test(t)) applyParsed(parseVcard(t));
-    else if (/^MECARD:/i.test(t)) applyParsed(parseMecard(t));
-    else { $('cf_badge_code').value = t; setMarks({ badge_code: 'read' }); }
-    cMsg('Code scanned.', true);
+function edgeSides(g, W, H, ox, oy, ow, oh) { // how many outline sides show a card edge
+  var px = function (x, y) { return g[Math.min(H - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))]; };
+  var side = function (horiz, pos, len, start, span) {
+    var a = Math.round(pos - .15 * span), b = Math.round(pos + .15 * span), s0 = Math.round(start + .15 * len), s1 = Math.round(start + .85 * len), best = 0;
+    for (var q = Math.max(1, a); q <= Math.min((horiz ? H : W) - 2, b); q++) {
+      var hits = 0;
+      for (var t = s0; t < s1; t++) { var dlt = horiz ? px(t, q + 1) - px(t, q - 1) : px(q + 1, t) - px(q - 1, t); if (Math.abs(dlt) > 24) hits++; }
+      best = Math.max(best, hits / Math.max(1, s1 - s0));
+    }
+    return best >= .55 ? 1 : 0;
   };
-  if (window.BarcodeDetector) {
-    if (!cam.bd) try { cam.bd = new window.BarcodeDetector(); } catch (e) { cam.bd = null; }
-    if (cam.bd) { cam.bd.detect(f.canvas).then(function (r) { if (r && r[0] && cam.timer) done(r[0].rawValue); }).catch(function () { }); return; }
-  }
-  if (window.jsQR) { var q = window.jsQR(f.data.data, f.data.width, f.data.height); if (q && q.data) done(q.data); }
+  return side(true, oy, ow, ox, oh) + side(true, oy + oh, ow, ox, oh) + side(false, ox, oh, oy, ow) + side(false, ox + ow, oh, oy, ow);
 }
-$('cfReadBtn').addEventListener('click', function () { startCam('read'); });
-$('cfScanBtn').addEventListener('click', function () { startCam('scan'); });
+function frameDiff(a, b) { if (a.length !== b.length || !a.length) return 255; var n = 0; for (var i = 0; i < a.length; i += 2) n += Math.abs(a[i] - b[i]); return n / Math.ceil(a.length / 2); }
+function camWatch() {
+  var cv = document.createElement('canvas'), ctx = cv.getContext('2d', { willReadFrequently: true }), last = null, holdSince = 0, misses = 0, startAt = Date.now();
+  cam.timer = setInterval(function () {
+    if (cam.done) return;
+    var T = camRect(); if (!T || !T.v.videoWidth) return;
+    var mx = T.w * .2, my = T.h * .2, L = Math.max(0, T.x - mx), Y = Math.max(0, T.y - my), Wd = Math.min(T.v.videoWidth, T.x + T.w + mx), Hd = Math.min(T.v.videoHeight, T.y + T.h + my);
+    var sc = 200 / Math.max(1, Wd - L), V = 200, P = Math.max(10, Math.round((Hd - Y) * sc));
+    cv.width = V; cv.height = P; ctx.drawImage(T.v, L, Y, Wd - L, Hd - Y, 0, 0, V, P);
+    var B = ctx.getImageData(0, 0, V, P).data, g = new Uint8Array(V * P);
+    for (var i = 0; i < g.length; i++) g[i] = B[i * 4] * 77 + B[i * 4 + 1] * 150 + B[i * 4 + 2] * 29 >> 8;
+    var still = last ? frameDiff(last, g) <= 11 : false; last = g;
+    if (!(edgeSides(g, V, P, (T.x - L) * sc, (T.y - Y) * sc, T.w * sc, T.h * sc) >= 3 && still && Date.now() - startAt > 600)) {
+      misses++;
+      if (!holdSince || misses > 2) { holdSince = 0; misses = 0; if (cam.holding) { cam.holding = false; camHint(); } }
+      return;
+    }
+    misses = 0;
+    if (!holdSince) { holdSince = Date.now(); cam.holding = true; camHint(); return; }
+    if (Date.now() - holdSince >= 1000) camCapture();
+  }, 120);
+}
+$('camCapture').addEventListener('click', camCapture);
+$('camClose').addEventListener('click', function () { cam.done = true; stopCam(); });
+$('camPicker').addEventListener('click', function () { cam.done = true; stopCam(); $('cfReadFile').click(); });
+$('cfReadBtn').addEventListener('click', function () { cMsg(''); if (hasLiveCamera()) startCam(); else $('cfReadFile').click(); });
 
 // ---- export: only new or changed cards; recorded per person ----
 function vEsc(s) { return String(s || '').replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/([,;])/g, '\\$1'); }
@@ -1214,6 +1545,15 @@ function pickStart(v) {
   $('startTiles').hidden = true;
   if (v === 'cards') { var b = document.querySelector('.tab[data-view="cards"]'); if (b) b.click(); }
 }
+// Help pictures for the Card Reader load only when Help is opened (help-cards.js).
+function loadHelpPictures() {
+  if (window.TS_HELP_IMG) return fillHelpPictures();
+  loadScript('help-cards.js?v=2026-11-26c').then(fillHelpPictures, function () { /* pictures are optional */ });
+}
+function fillHelpPictures() {
+  document.querySelectorAll('img[data-help-img]').forEach(function (im) { var u = window.TS_HELP_IMG && window.TS_HELP_IMG[im.dataset.helpImg]; if (u && !im.src) im.src = u; });
+}
+['helpBtn', 'helpLink'].forEach(function (id) { var b = $(id); if (b) b.addEventListener('click', loadHelpPictures); });
 $('tileCards').addEventListener('click', function () { pickStart('cards'); });
 $('tileApp').addEventListener('click', function () { pickStart('app'); });
 sb.auth.onAuthStateChange(function (event, session) {
