@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SS Training">
-<link rel="stylesheet" href="styles.css?v=2026-11-26b">
+<link rel="stylesheet" href="styles.css?v=2026-11-26c">
 <style>
 .overlay{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.45);overflow:auto;padding:16px}
 .sheet{max-width:860px;margin:0 auto;padding:14px}
@@ -23,15 +23,44 @@
 .cf-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px 12px}
 .cf-grid label{display:flex;flex-direction:column;font-size:13px;gap:3px}
 .cf-grid .wide{grid-column:1/-1}
-.cf-grid input,.cf-grid select,.cf-grid textarea,#cfPasteText,#cfOtherText{width:100%;box-sizing:border-box}
-.mark{font-size:11px;margin-left:4px}.mark.read{color:var(--c-free)}.mark.check{color:var(--warn)}
+.cf-grid input,.cf-grid select,.cf-grid textarea,#cfOtherText{width:100%;box-sizing:border-box}
 .cf-box{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .cf-img{max-width:100%;margin-top:10px;border-radius:8px;border:1px solid var(--line)}
 .c-row{padding:10px 14px;margin-bottom:8px;cursor:pointer}.c-line1{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.cam{display:flex;flex-direction:column;align-items:center;background:#000}
-.cam-wrap{position:relative;width:min(100%,720px)}.cam-wrap video{width:100%;border-radius:8px}
-.cam-outline{position:absolute;left:10%;right:10%;top:50%;aspect-ratio:1.75;transform:translateY(-50%);border:3px dashed #fff;border-radius:10px;pointer-events:none}
-.cam-title,.cam-status{color:#fff;text-align:center;margin:8px}.cam-actions{display:flex;gap:10px}
+.cf-scan{padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--chip);margin:10px 0}
+.cf-kicker{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.cf-scan textarea{width:100%;box-sizing:border-box;margin-top:4px}
+.cf-ok{color:#047857}:root[data-theme="dark"] .cf-ok{color:#6ee7b7}
+.cf-toggle{margin:8px 0}
+.help-fig{margin:12px 0;text-align:center}.help-fig img{max-width:min(100%,360px);border:1px solid var(--line);border-radius:8px}.help-fig:has(img:not([src])){display:none}.help-fig figcaption{font-size:12px;color:var(--muted);margin-top:4px}
+.help-table{width:100%;border-collapse:collapse;font-size:14px}.help-table th,.help-table td{text-align:left;vertical-align:top;border-top:1px solid var(--line);padding:6px 8px 6px 0}.help-table td:first-child{font-weight:600;white-space:nowrap}
+.cf-lab{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.mark{font-size:11px;margin-left:4px;border-radius:4px;padding:0 4px}.mark:empty{display:none}
+.mark.read{background:#ecfdf5;color:#047857}.mark.check{background:#fffbeb;color:#92400e}
+:root[data-theme="dark"] .mark.read{background:#064e3b;color:#a7f3d0}:root[data-theme="dark"] .mark.check{background:#451a03;color:#fcd34d}
+.cf-warn{padding:10px;border:1px solid #fcd34d;background:#fffbeb;color:#78350f;border-radius:6px;font-size:14px}
+:root[data-theme="dark"] .cf-warn{background:#3a2a06;border-color:#92400e;color:#fde68a}
+.cf-ask{background:#f0f9ff;border-color:#bae6fd}:root[data-theme="dark"] .cf-ask{background:#0e2433;border-color:#0c4a6e}
+.cf-dup table{width:100%;font-size:13px;border-collapse:collapse;margin-top:10px}.cf-dup th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:4px 8px 4px 0}
+.cf-dup td{border-top:1px solid var(--line);padding:4px 8px 4px 0;vertical-align:top}.strong{font-weight:600}
+.cf-savedbox{padding:12px;border:1px solid #6ee7b7;background:#ecfdf5;border-radius:6px;margin:10px 0}
+:root[data-theme="dark"] .cf-savedbox{background:#062e24;border-color:#047857}
+.cf-summary{margin-top:8px}
+.cf-stack{display:grid;gap:8px;margin-top:12px}
+.cam2{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;background:#000}
+.cam2-view{position:relative;flex:1;overflow:hidden}
+.cam2-view video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.cam2-center{pointer-events:none;position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.cam2-outline{width:88%;max-width:640px;aspect-ratio:1.75;border-radius:12px;box-sizing:border-box;border:2px solid #fff;box-shadow:0 0 0 9999px rgba(0,0,0,.55);transition:border-color .15s,border-width .15s}
+.cam2-outline.hold{border:12px solid #4ade80}
+.cam2-hint{position:absolute;left:0;right:0;top:0;padding:12px;text-align:center;font-size:14px;color:#fff}
+.cam2-failed{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;font-size:14px;color:#fff;background:rgba(0,0,0,.8)}
+.cam2-failed[hidden]{display:none}
+.cam2-pick{border:0;border-radius:6px;background:#fff;color:#0f172a;padding:8px 16px;font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;cursor:pointer}
+.cam2-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#000;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom))}
+.cam2-close{border:1px solid rgba(255,255,255,.6);background:transparent;color:#fff;border-radius:6px;padding:8px 16px;font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;cursor:pointer}
+.cam2-cap{border:0;border-radius:999px;background:#fff;color:#0f172a;padding:12px 24px;font:600 14px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;cursor:pointer}
+.cam2-cap:disabled{opacity:.4}
 /* Start choice: same layout as the Conference Tracker's (v3.8.22) */
 .start-ov{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.6)}
 .start-ov[hidden]{display:none}
@@ -301,59 +330,97 @@ details.trainer{padding:0}
 
 <div id="cardForm" class="overlay" hidden>
   <div class="card sheet">
-    <div class="sheet-head"><strong id="cfTitle">Add Card</strong><span class="spacer"></span><button type="button" id="cfCancel" class="ghost small">Close</button></div>
-    <div class="cf-tools">
-      <button type="button" id="cfReadBtn" class="primary small">Read Card</button>
-      <button type="button" id="cfPasteBtn" class="ghost small">Fill In</button>
-      <button type="button" id="cfScanBtn" class="ghost small">Scan Code</button>
+    <div class="sheet-head"><strong id="cfTitle">Add Card</strong><span class="spacer"></span><button type="button" id="cfCancel" class="ghost small">Back to Previous Page</button></div>
+    <div id="cfMain">
+      <div id="cfScanBox" class="cf-scan">
+        <div class="cf-kicker">Scan or paste the card text</div>
+        <textarea id="cfText" rows="4" placeholder="Tap Read Card to use the camera, or paste or type the card text here."></textarea>
+        <div class="cf-tools">
+          <button type="button" id="cfFillBtn" class="primary small" disabled>Fill In</button>
+          <button type="button" id="cfReadBtn" class="ghost small">Read Card</button>
+          <button type="button" id="cfScanBtn" class="ghost small">Scan Code</button>
+          <input type="file" id="cfReadFile" accept="image/*" capture="environment" hidden>
+          <input type="file" id="cfScanFile" accept="image/*" capture="environment" hidden>
+        </div>
+        <p class="small muted">Read Card opens the camera with a card outline. The card is read on this device; a smaller copy of the picture is saved with the card (View Card) until you export it. Check every field before saving.</p>
+        <p id="cfPicKept" class="small cf-ok" hidden>Card picture ready to save with this card.</p>
+      </div>
+      <p id="cfBusy" class="small muted" hidden></p>
+      <div class="cf-grid" id="cfGrid">
+        <label data-f="first_name"><span class="cf-lab">First name <span class="mark" data-mark="first_name"></span></span><input id="cf_first_name"></label>
+        <label data-f="last_name"><span class="cf-lab">Last name <span class="mark" data-mark="last_name"></span></span><input id="cf_last_name"></label>
+        <label data-f="title"><span class="cf-lab">Title <span class="mark" data-mark="title"></span></span><input id="cf_title"></label>
+        <label data-f="agency"><span class="cf-lab">Agency <span class="mark" data-mark="agency"></span></span><input id="cf_agency" list="cfAgencies"></label>
+        <label data-f="department"><span class="cf-lab">Department <span class="mark" data-mark="department"></span></span><input id="cf_department"></label>
+        <label data-f="work_email"><span class="cf-lab">Work email <span class="mark" data-mark="work_email"></span></span><input id="cf_work_email" type="email"></label>
+        <label data-f="mobile"><span class="cf-lab">Mobile phone <span class="mark" data-mark="mobile"></span></span><input id="cf_mobile" type="tel"></label>
+        <label data-f="office_phone"><span class="cf-lab">Office phone <span class="mark" data-mark="office_phone"></span></span><input id="cf_office_phone" type="tel"></label>
+        <label data-f="office_ext"><span class="cf-lab">Ext. <span class="mark" data-mark="office_ext"></span></span><input id="cf_office_ext"></label>
+        <label data-f="city"><span class="cf-lab">City <span class="mark" data-mark="city"></span></span><input id="cf_city"></label>
+        <label data-f="state"><span class="cf-lab">State <span class="mark" data-mark="state"></span></span><input id="cf_state" maxlength="2"></label>
+        <label data-f="website"><span class="cf-lab">Website <span class="mark" data-mark="website"></span></span><input id="cf_website"></label>
+        <label data-f="linkedin"><span class="cf-lab">LinkedIn <span class="mark" data-mark="linkedin"></span></span><input id="cf_linkedin"></label>
+      </div>
+      <button type="button" id="cfFieldsToggle" class="ghost small cf-toggle" hidden></button>
+      <div class="cf-grid">
+        <label><span class="cf-lab">Date met <span class="mark" data-mark="date_met"></span></span><input id="cf_date_met" type="date"></label>
+        <label>Reason (required) <select id="cf_reason"></select></label>
+        <div id="cfOther" class="cf-box wide" hidden><input id="cfOtherText" maxlength="60" placeholder="Type the reason">
+          <button type="button" id="cfAddList" class="primary small">Add to the List</button>
+          <button type="button" id="cfUseOnce" class="ghost small">Use Once</button>
+          <button type="button" id="cfOtherCancel" class="ghost small">Cancel</button></div>
+        <div id="cfAsk" class="cf-box cf-ask wide" hidden><div>"<span id="cfAskText"></span>" is used on this card only. Send a request to add it to the Reason list for everyone?</div>
+          <button type="button" id="cfAskYes" class="primary small">Send Request</button>
+          <button type="button" id="cfAskNo" class="ghost small">No Thanks</button></div>
+        <p id="cfReasonMsg" class="small wide" hidden></p>
+        <label><span class="cf-lab">Badge / code <span class="mark" data-mark="badge_code"></span></span><input id="cf_badge_code"></label>
+        <label>Tags (comma separated) <input id="cf_tags"></label>
+        <label class="wide"><span class="cf-lab">Notes <span class="mark" data-mark="notes"></span></span><textarea id="cf_notes" rows="3" maxlength="4000"></textarea></label>
+        <label class="wide">Visible to <select id="cf_vis"><option value="everyone">Everyone</option><option value="only_me">Only me</option><option value="selected">Selected users</option></select></label>
+        <label id="cfShareRow" class="wide" hidden>Selected users (emails, comma between) <input id="cf_share"></label>
+      </div>
+      <datalist id="cfAgencies"></datalist>
+      <p id="cfMsg" class="msg" role="status"></p>
+      <img id="cfImg" class="cf-img" alt="Card picture" hidden>
+      <div class="sheet-foot"><button type="button" id="cfSave" class="primary">Save Card</button><span id="cfNeeds" class="small muted">Needs a Reason and a last name or agency.</span>
+        <span class="spacer"></span><span id="cfSaved" class="small muted"></span>
+        <button type="button" id="cfViewImg" class="ghost small" hidden>View Card</button>
+        <button type="button" id="cfDelete" class="ghost small" hidden>Delete</button></div>
     </div>
-    <div id="cfPaste" hidden><textarea id="cfPasteText" rows="5" placeholder="Paste the text from a card, email signature or vCard"></textarea><button type="button" id="cfPasteGo" class="primary small">Fill In</button></div>
-    <p id="cfMsg" class="msg" role="status"></p>
-    <div class="cf-grid">
-      <label>First name <span class="mark" data-mark="first_name"></span><input id="cf_first_name"></label>
-      <label>Last name <span class="mark" data-mark="last_name"></span><input id="cf_last_name"></label>
-      <label>Title <span class="mark" data-mark="title"></span><input id="cf_title"></label>
-      <label>Agency <span class="mark" data-mark="agency"></span><input id="cf_agency" list="cfAgencies"></label>
-      <label>Department <span class="mark" data-mark="department"></span><input id="cf_department"></label>
-      <label>Work email <span class="mark" data-mark="work_email"></span><input id="cf_work_email" type="email"></label>
-      <label>Mobile <span class="mark" data-mark="mobile"></span><input id="cf_mobile" type="tel"></label>
-      <label>Office phone <span class="mark" data-mark="office_phone"></span><input id="cf_office_phone" type="tel"></label>
-      <label>Ext <span class="mark" data-mark="office_ext"></span><input id="cf_office_ext"></label>
-      <label>City <span class="mark" data-mark="city"></span><input id="cf_city"></label>
-      <label>State <span class="mark" data-mark="state"></span><input id="cf_state" maxlength="2"></label>
-      <label>Website <span class="mark" data-mark="website"></span><input id="cf_website"></label>
-      <label>LinkedIn <span class="mark" data-mark="linkedin"></span><input id="cf_linkedin"></label>
-      <label>Badge code <span class="mark" data-mark="badge_code"></span><input id="cf_badge_code"></label>
-      <label>Date met <span class="mark" data-mark="date_met"></span><input id="cf_date_met" type="date"></label>
-      <label>Reason (required) <select id="cf_reason"></select></label>
-      <label class="wide">Tags (comma between) <input id="cf_tags"></label>
-      <label class="wide">Notes <span class="mark" data-mark="notes"></span><textarea id="cf_notes" rows="3"></textarea></label>
-      <label>Visible to <select id="cf_vis"><option value="everyone">Everyone</option><option value="only_me">Only me</option><option value="selected">Selected users</option></select></label>
-      <label id="cfShareRow" class="wide" hidden>Selected users (emails, comma between) <input id="cf_share"></label>
+    <div id="cfDupView" hidden>
+      <div class="cf-warn">This looks like an existing card: <strong id="cfDupName"></strong><span id="cfDupAgency"></span>.</div>
+      <div id="cfDupTable" class="table-wrap cf-dup"></div>
+      <p id="cfDupMsg" class="msg"></p>
+      <div class="cf-tools">
+        <button type="button" id="cfDupUse" class="ghost small">Use the Existing Card</button>
+        <button type="button" id="cfDupAll" class="primary small">Accept All</button>
+        <button type="button" id="cfDupUpdate" class="ghost small">Update Ticked Fields</button>
+        <button type="button" id="cfDupNew" class="ghost small">Save as a New Card</button>
+        <button type="button" id="cfDupBack" class="link small">Back</button>
+      </div>
     </div>
-    <datalist id="cfAgencies"></datalist>
-    <div id="cfOther" class="cf-box" hidden>Other reason <input id="cfOtherText" maxlength="60">
-      <button type="button" id="cfAddList" class="primary small">Add to the List</button>
-      <button type="button" id="cfUseOnce" class="ghost small">Use Once</button></div>
-    <div id="cfAsk" class="cf-box" hidden>Send Request? Ask to add "<span id="cfAskText"></span>" to everyone's list.
-      <button type="button" id="cfAskYes" class="primary small">Send Request</button>
-      <button type="button" id="cfAskNo" class="ghost small">No</button></div>
-    <div id="cfDup" class="cf-box" hidden><p id="cfDupText"></p><div id="cfDupTable" class="table-wrap"></div>
-      <button type="button" id="cfDupUse" class="ghost small">Use existing</button>
-      <button type="button" id="cfDupUpdate" class="primary small">Update existing</button>
-      <button type="button" id="cfDupNew" class="ghost small">Save as new</button></div>
-    <img id="cfImg" class="cf-img" alt="Card picture" hidden>
-    <div class="sheet-foot"><span id="cfSaved" class="small muted"></span><span class="spacer"></span>
-      <button type="button" id="cfViewImg" class="ghost small" hidden>View Card</button>
-      <button type="button" id="cfDelete" class="ghost small" hidden>Delete</button>
-      <button type="button" id="cfSave" class="primary">Save</button></div>
+    <div id="cfSavedView" hidden>
+      <div class="cf-savedbox"><div class="cf-kicker cf-ok">Saved</div><div id="cfSavedMsg" class="small"></div><div id="cfSavedSummary" class="cf-summary"></div></div>
+      <div class="cf-tools"><button type="button" id="cfAnother" class="primary small">Add Another Card</button><button type="button" id="cfSavedBack" class="ghost small">Back to Previous Page</button></div>
+    </div>
+  </div>
+  <div id="cfLeave" class="start-ov" hidden>
+    <div class="start-box" role="alertdialog" aria-modal="true" aria-label="Leave without saving?">
+      <div class="start-q">Add Card</div>
+      <p class="cf-warn">This card will not be saved if you leave this screen.</p>
+      <div class="cf-stack"><button type="button" id="cfStay" class="primary">Stay Here</button><button type="button" id="cfLeaveYes" class="ghost">Back to Previous Page</button></div>
+    </div>
   </div>
 </div>
 
-<div id="camBox" class="overlay cam" hidden>
-  <div class="cam-wrap"><video id="camVideo" muted playsinline></video><div id="camOutline" class="cam-outline"></div></div>
-  <p id="camTitle" class="cam-title"></p><p id="camStatus" class="cam-status"></p>
-  <div class="cam-actions"><button type="button" id="camCapture" class="primary">Capture now</button><button type="button" id="camCancel" class="ghost">Cancel</button></div>
+<div id="camBox" class="cam2" hidden>
+  <div class="cam2-view">
+    <video id="camVideo" muted playsinline></video>
+    <div class="cam2-center"><div id="camOutline" class="cam2-outline"></div></div>
+    <div id="camHint" class="cam2-hint"></div>
+    <div id="camFailed" class="cam2-failed" hidden><p>The live camera isn't available here (or permission was turned down).</p><button type="button" id="camPicker" class="cam2-pick">Take or Choose a Picture</button></div>
+  </div>
+  <div class="cam2-bar"><button type="button" id="camClose" class="cam2-close">Close</button><button type="button" id="camCapture" class="cam2-cap" disabled>Capture</button></div>
 </div>
 
 <div id="startTiles" class="start-ov" hidden>
@@ -478,16 +545,34 @@ details.trainer{padding:0}
   </div></details>
 
   <details class="card"><summary>Card Reader</summary><div class="help-body">
-    <p>Save the people you meet as cards. Open it from the Menu (<em>Card Reader</em>) or the tile shown after you sign in. The Menu shows <em>N mine</em> (cards you saved and have not exported) and <em>N all</em> (all cards you can see that you have not exported).</p>
-    <ul>
-      <li><strong>Add Card</strong>: <em>Read Card</em> opens the camera; hold the card inside the outline and keep still for a second (or tap <em>Capture now</em>). The text is read on your phone. <em>Fill In</em> reads pasted text (a card, an email signature or a vCard). <em>Scan Code</em> reads a QR code or badge.</li>
-      <li>Fields marked <em>read</em> came straight from the card; <em>check this</em> means it was guessed. Agency is the agency the person works for.</li>
-      <li><strong>Reason</strong> is required. <em>Other…</em>: Training Admins can <em>Add to the List</em> or <em>Use Once</em>; everyone else uses it once and can send a request to add it for everyone.</li>
-      <li><strong>Visible to</strong>: Everyone, Only me, or Selected users (their emails). Only the person who saved a card can change this.</li>
-      <li><strong>Possible duplicates</strong>: use the existing card, update it side by side (tick the fields to take), or save as new.</li>
-      <li><strong>Export new</strong>: only cards that are new or changed since you last exported, as an Apple Contacts file (.vcf) or a spreadsheet (.csv). Your exports are recorded for you only. Training Admins also have <em>Backup all</em>.</li>
-      <li>After <em>Read Card</em> a small picture of the card is kept (<em>View Card</em>). It is removed when the person who saved the card exports it.</li>
-    </ul>
+    <p>Menu → <strong>Card Reader</strong> (or the <em>Card Reader</em> tile when the app opens) holds the business cards of people you meet. Everyone with Training Status can add cards. Beside <em>Card Reader</em> in the Menu, <em>N mine</em> counts the cards you saved that you have not exported yet and <em>N all</em> every card you can see that you have not exported; each shows only when it is above zero.</p>
+    <figure class="help-fig"><img data-help-img="tiles" alt="The choice after sign-in: Card Reader or Training App"><figcaption>After sign-in: Card Reader or Training App.</figcaption></figure>
+    <figure class="help-fig"><img data-help-img="page" alt="The Card Reader page"><figcaption>The Card Reader page: search, Show, Add Card and Export.</figcaption></figure>
+    <div class="table-wrap"><table class="help-table"><thead><tr><th>Item</th><th>How it works</th></tr></thead><tbody>
+      <tr><td>Read Card</td><td>The camera opens with a card-shaped outline. Fill it with the card and hold still: it turns green and takes the picture after one second (or press <em>Capture</em>). The card is read on your device. Check every field: <em>check this</em> means guessed, <em>read</em> means it came straight from the card. <em>Show All Fields</em> shows the blanks. You can also paste card text and press <em>Fill In</em>, or press <em>Scan Code</em> and take a picture of a QR code or badge.</td></tr>
+      <tr><td>No camera</td><td><em>Take or Choose a Picture</em> instead; the app finds the card in the picture.</td></tr>
+      <tr><td>Card picture</td><td>After Read Card, a smaller copy of the card picture is saved with the card. Open the card and press <em>View Card</em> to see it. The picture is removed when the person who saved the card exports it.</td></tr>
+      <tr><td>Agency</td><td>The agency the person works for (the list suggests agencies from Trainings).</td></tr>
+      <tr><td>Date met</td><td>Starts on today; change it if needed.</td></tr>
+      <tr><td>Reason</td><td>Required: POC, User, Admin, IT, or any reason a Training Admin has added. <em>Other…</em> lets you type a new one and press <em>Use Once</em> (this card only). The app then asks whether to send a request to add it to the list for everyone: <em>Send Request</em> or <em>No Thanks</em>. Training Admins can also press <em>Add to the List</em>; requests are handled in the Conference Tracker's Admin page.</td></tr>
+      <tr><td>Saving</td><td>Needs a Reason and a last name or agency.</td></tr>
+      <tr><td>Leaving the form</td><td><em>Back to Previous Page</em> returns to the list. With unsaved entries it reads <em>Cancel</em> and warns first.</td></tr>
+      <tr><td>After Save</td><td>The form shows Saved; press <em>Add Another Card</em> for the next card.</td></tr>
+      <tr><td>Possible duplicate</td><td>The app shows the existing card and the new details side by side: <em>Use the Existing Card</em>, <em>Accept All</em>, <em>Update Ticked Fields</em> (fields empty on the existing card start ticked) or <em>Save as a New Card</em>.</td></tr>
+      <tr><td>Visible to</td><td>Everyone, Only me, or Selected users (their emails). Only the person who saved a card can change this.</td></tr>
+      <tr><td>Export</td><td>Only new or changed cards, as an Apple Contacts file (.vcf) or a spreadsheet (.csv). Your exports are recorded for you only. Exporting your own cards also removes their saved pictures. Training Admins also have <em>Backup all</em>.</td></tr>
+    </tbody></table></div>
+    <p><strong>The camera screen.</strong> Fill the white outline with the card and hold still.</p>
+    <figure class="help-fig"><img data-help-img="camera" alt="Read Card: the camera screen with the card outline"><figcaption>Read Card: the camera screen with the card outline.</figcaption></figure>
+    <p>When the card's edges line up and the picture is still, the outline turns thick green and the text reads "Hold still…". After one second the picture is taken by itself (or press Capture).</p>
+    <figure class="help-fig"><img data-help-img="lock" alt="The green outline: the card is locked"><figcaption>The green outline: the card is locked and the picture is about to be taken.</figcaption></figure>
+    <p>If the live camera isn't available (or permission was turned down), the screen offers <em>Take or Choose a Picture</em> instead.</p>
+    <figure class="help-fig"><img data-help-img="picker" alt="No live camera: Take or Choose a Picture"><figcaption>No live camera: Take or Choose a Picture.</figcaption></figure>
+    <figure class="help-fig"><img data-help-img="filled" alt="A card read in"><figcaption>A card read in: <em>read</em> and <em>check this</em> beside each field.</figcaption></figure>
+    <figure class="help-fig"><img data-help-img="other" alt="Other: Use Once, then the request question"><figcaption>Other…: Use Once, then the request question.</figcaption></figure>
+    <figure class="help-fig"><img data-help-img="saved" alt="Saved, with Add Another Card"><figcaption>Saved, with Add Another Card.</figcaption></figure>
+    <figure class="help-fig"><img data-help-img="dup" alt="Possible duplicate"><figcaption>Possible duplicate: the existing card and the new details side by side.</figcaption></figure>
+    <figure class="help-fig"><img data-help-img="viewcard" alt="View Card shows the saved picture"><figcaption>View Card shows the saved picture.</figcaption></figure>
   </div></details>
 
   <details class="card"><summary>Active PM Projects page</summary><div class="help-body">
@@ -519,6 +604,6 @@ details.trainer{padding:0}
 </main>
 
 <p id="fatal" class="fatal" hidden></p>
-<script src="app.js?v=2026-11-26b"></script>
+<script src="app.js?v=2026-11-26c"></script>
 </body>
 </html>
