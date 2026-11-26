@@ -775,14 +775,15 @@ function loadCards() {
   if (!me.id) return Promise.resolve();
   return Promise.all([
     sb.from('ts_contacts').select('*').order('updated_at', { ascending: false }),
-    sb.from('ts_card_reasons').select('reason').order('reason'),
+    sb.from('ts_card_reasons').select('reason,active').order('reason'),
     sb.from('ts_contact_exports').select('contact_id,exported_at'),
     sb.from('ts_contact_shares').select('contact_id,email')
   ]).then(function (r) {
     var err = r.filter(function (x) { return x.error; })[0];
     if (err) throw err.error;
     cards.list = r[0].data || [];
-    cards.reasons = (r[1].data || []).map(function (x) { return x.reason; });
+    cards.reasons = (r[1].data || []).filter(function (x) { return x.active !== false; }).map(function (x) { return x.reason; });
+    cards.inactive = (r[1].data || []).filter(function (x) { return x.active === false; }).map(function (x) { return x.reason; });
     cards.exp = {}; (r[2].data || []).forEach(function (x) { cards.exp[x.contact_id] = x.exported_at; });
     cards.shares = {}; (r[3].data || []).forEach(function (x) { (cards.shares[x.contact_id] = cards.shares[x.contact_id] || []).push(x.email); });
     cards.loaded = true;
@@ -841,7 +842,7 @@ var cf = { editing: null, image: null, reads: [], hideBlank: false, touched: {},
 function fillReasons(sel) {
   var list = cards.reasons.slice();
   $('cf_reason').innerHTML = '<option value="">Choose…</option>' + list.map(function (r) { return '<option>' + esc(r) + '</option>'; }).join('') +
-    (sel && list.indexOf(sel) < 0 ? '<option value="' + esc(sel) + '">' + esc(sel) + ' (this card only)</option>' : '') +
+    (sel && list.indexOf(sel) < 0 ? '<option value="' + esc(sel) + '">' + esc(sel) + ((cards.inactive || []).indexOf(sel) >= 0 ? ' (inactive)' : ' (this card only)') + '</option>' : '') +
     '<option value="__other">Other…</option>';
   $('cf_reason').value = sel || '';
 }
@@ -923,7 +924,10 @@ function useOther(addToList) {
   var r = $('cfOtherText').value.trim().replace(/\s+/g, ' ').slice(0, 60);
   if (!r) { reasonMsg('Type a reason.'); return; }
   if (addToList) {
-    if (cards.reasons.some(function (x) { return x.toLowerCase() === r.toLowerCase(); })) { fillReasons(r); $('cfOther').hidden = true; cfButtons(); return; }
+    var hit = cards.reasons.filter(function (x) { return x.toLowerCase() === r.toLowerCase(); })[0];
+    if (hit) { fillReasons(hit); $('cfOther').hidden = true; cfButtons(); return; }
+    var off = (cards.inactive || []).filter(function (x) { return x.toLowerCase() === r.toLowerCase(); })[0];
+    if (off) { fillReasons(off); $('cfOther').hidden = true; reasonMsg('"' + off + '" is set inactive, so it is used on this card only. An admin can reactivate it in the Conference Tracker Admin page.'); cfButtons(); return; }
     sb.from('ts_card_reasons').insert({ reason: r, added_by_email: cMe() }).then(function (x) {
       if (x.error) { reasonMsg('The reason could not be added to the list.'); return; }
       cards.reasons.push(r); cards.reasons.sort(); fillReasons(r); $('cfOther').hidden = true; reasonMsg('"' + r + '" was added to the Reason list.'); cfButtons();
@@ -1548,7 +1552,7 @@ function pickStart(v) {
 // Help pictures for the Card Reader load only when Help is opened (help-cards.js).
 function loadHelpPictures() {
   if (window.TS_HELP_IMG) return fillHelpPictures();
-  loadScript('help-cards.js?v=2026-11-26c').then(fillHelpPictures, function () { /* pictures are optional */ });
+  loadScript('help-cards.js?v=2026-11-26d').then(fillHelpPictures, function () { /* pictures are optional */ });
 }
 function fillHelpPictures() {
   document.querySelectorAll('img[data-help-img]').forEach(function (im) { var u = window.TS_HELP_IMG && window.TS_HELP_IMG[im.dataset.helpImg]; if (u && !im.src) im.src = u; });
