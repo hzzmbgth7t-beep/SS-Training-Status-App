@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SS Training">
-<link rel="stylesheet" href="styles.css?v=2026-11-26a">
+<link rel="stylesheet" href="styles.css?v=2026-11-26b">
 <style>
 .overlay{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.45);overflow:auto;padding:16px}
 .sheet{max-width:860px;margin:0 auto;padding:14px}
@@ -143,22 +143,12 @@ details.trainer{padding:0}
   </form>
 </main>
 
-<!-- APP CHOOSER / ACCESS GATE -->
+<!-- ACCESS GATE -->
 <main id="gateView" class="login" hidden>
   <div class="card login-card gate">
     <h1>Southern Software</h1>
     <p class="muted small">Signed in as <span id="gateEmail"></span></p>
     <p id="gateMsg"></p>
-    <div id="gateChoices" class="choices" hidden>
-      <button type="button" id="pickTraining" class="choice">
-        <strong>Training Status</strong>
-        <span class="muted small">Trainings by agency and trainer assignments</span>
-      </button>
-      <button type="button" id="pickConference" class="choice">
-        <strong>Conference Tracker</strong>
-        <span class="muted small">2026–2027 conferences, sponsorships and contacts</span>
-      </button>
-    </div>
     <button type="button" id="gateSignOut" class="link">Sign out</button>
   </div>
 </main>
@@ -398,7 +388,7 @@ details.trainer{padding:0}
     <p>Open <strong>https://hzzmbgth7t-beep.github.io/SS-Training-Status-App/</strong> in Safari (iPhone/iPad) or Chrome (Android or computer).</p>
     <p>Sign in with your @southernsoftware.com email and your password. No account yet? Ask Ronnie Brigman.</p>
     <p>Forgot your password? Type your email, tap <em>Forgot password?</em>, and use the link in the email to set a new one.</p>
-    <p>If your account also has the Conference Tracker, you choose which app to open after signing in. Administrators who have both apps also see <em>Switch App</em> in the Menu; it opens the Conference Tracker directly.</p>
+    <p>This address always opens Training Status, even if your account also has the Conference Tracker. Administrators who have both apps see <em>Switch App</em> in the Menu; it opens the Conference Tracker directly.</p>
   </div></details>
 
   <details class="card"><summary>2. Set up Face ID (or fingerprint / passkey)</summary><div class="help-body">
@@ -529,6 +519,6 @@ details.trainer{padding:0}
 </main>
 
 <p id="fatal" class="fatal" hidden></p>
-<script src="app.js?v=2026-11-26a"></script>
+<script src="app.js?v=2026-11-26b"></script>
 </body>
 </html>
