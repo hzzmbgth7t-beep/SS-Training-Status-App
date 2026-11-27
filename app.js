@@ -859,9 +859,20 @@ function formSnapshot() {
 }
 function cfDirty() { return !cf.saved && (formSnapshot() !== cf.base || !!$('cfText').value.trim()); }
 function cfShow(which) { $('cfMain').hidden = which !== 'main'; $('cfDupView').hidden = which !== 'dup'; $('cfSavedView').hidden = which !== 'saved'; }
+function cfMissing() {
+  var m = [];
+  if (!$('cf_reason').value || $('cf_reason').value === '__other') m.push('reason');
+  if (!$('cf_last_name').value.trim() && !$('cf_agency').value.trim()) m.push('name');
+  return m;
+}
+function cfNeedsText(m) {
+  return m.length === 2 ? 'To save, choose a Reason and add a last name or agency.' : m[0] === 'reason' ? 'To save, choose a Reason.' : 'To save, add a last name or agency.';
+}
 function cfButtons() {
-  var ok = !!$('cf_reason').value && $('cf_reason').value !== '__other' && (!!$('cf_last_name').value.trim() || !!$('cf_agency').value.trim());
-  $('cfSave').disabled = !ok; $('cfNeeds').hidden = ok;
+  // Save always responds to a tap; when something is missing it looks dimmed and says what is missing.
+  var m = cfMissing(), ok = !m.length;
+  $('cfSave').disabled = false; $('cfSave').classList.toggle('is-off', !ok);
+  $('cfNeeds').hidden = ok; if (!ok) $('cfNeeds').textContent = cfNeedsText(m); else $('cfNeeds').classList.remove('alert');
   $('cfFillBtn').disabled = !$('cfText').value.trim();
   $('cfCancel').textContent = cfDirty() ? 'Cancel' : 'Back to Previous Page';
 }
@@ -981,7 +992,16 @@ function dupRows(fresh, old) {
     return { key: k, label: F_LABEL[k], existing: e, fresh: f, ticked: !e.trim() };
   }).filter(function (r) { return r.fresh.trim() && nrm(r.fresh) !== nrm(r.existing); });
 }
-$('cfSave').addEventListener('click', function () { trySave(false); });
+$('cfSave').addEventListener('click', function () {
+  var m = cfMissing();
+  if (m.length) {
+    $('cfNeeds').textContent = cfNeedsText(m); $('cfNeeds').hidden = false; $('cfNeeds').classList.add('alert');
+    var f = m[0] === 'reason' ? $('cf_reason') : ($('cf_last_name').closest('[data-f]') && $('cf_last_name').closest('[data-f]').hidden ? $('cf_agency') : $('cf_last_name'));
+    f.scrollIntoView({ block: 'center', behavior: 'smooth' }); setTimeout(function () { try { f.focus(); } catch (e) { } }, 350);
+    return;
+  }
+  trySave(false);
+});
 function trySave(asNew) {
   var o = formValues(); cMsg('');
   if (!cf.editing && !asNew) {
@@ -1566,7 +1586,7 @@ function pickStart(v) {
 // Help pictures for the Card Reader load only when Help is opened (help-cards.js).
 function loadHelpPictures() {
   if (window.TS_HELP_IMG) return fillHelpPictures();
-  loadScript('help-cards.js?v=2026-11-26f').then(fillHelpPictures, function () { /* pictures are optional */ });
+  loadScript('help-cards.js?v=2026-11-27a').then(fillHelpPictures, function () { /* pictures are optional */ });
 }
 function fillHelpPictures() {
   document.querySelectorAll('img[data-help-img]').forEach(function (im) { var u = window.TS_HELP_IMG && window.TS_HELP_IMG[im.dataset.helpImg]; if (u && !im.src) im.src = u; });
