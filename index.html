@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SS Training">
-<link rel="stylesheet" href="styles.css?v=2026-11-26f">
+<link rel="stylesheet" href="styles.css?v=2026-11-27a">
 <style>
 .overlay{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.45);overflow:auto;padding:16px}
 .sheet{max-width:860px;margin:0 auto;padding:14px}
@@ -61,6 +61,9 @@
 .cam2-close{border:1px solid rgba(255,255,255,.6);background:transparent;color:#fff;border-radius:6px;padding:8px 16px;font:12px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;cursor:pointer}
 .cam2-cap{border:0;border-radius:999px;background:#fff;color:#0f172a;padding:12px 24px;font:600 14px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;cursor:pointer}
 .cam2-cap:disabled{opacity:.4}
+button.primary.is-off{opacity:.45}
+#cfNeeds.alert{color:#b45309;font-weight:600}
+:root[data-theme="dark"] #cfNeeds.alert{color:#fbbf24}
 .cam2-picks{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
 /* Start choice: same layout as the Conference Tracker's (v3.8.22) */
 .start-ov{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,23,42,.6)}
@@ -607,6 +610,6 @@ details.trainer{padding:0}
 </main>
 
 <p id="fatal" class="fatal" hidden></p>
-<script src="app.js?v=2026-11-26f"></script>
+<script src="app.js?v=2026-11-27a"></script>
 </body>
 </html>
