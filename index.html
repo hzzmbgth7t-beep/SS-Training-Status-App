@@ -13,7 +13,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="SS Training">
-<link rel="stylesheet" href="styles.css?v=2026-11-27a">
+<link rel="stylesheet" href="styles.css?v=2026-11-27b">
 <style>
 .overlay{position:fixed;inset:0;z-index:70;background:rgba(0,0,0,.45);overflow:auto;padding:16px}
 .sheet{max-width:860px;margin:0 auto;padding:14px}
@@ -62,6 +62,7 @@
 .cam2-cap{border:0;border-radius:999px;background:#fff;color:#0f172a;padding:12px 24px;font:600 14px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;cursor:pointer}
 .cam2-cap:disabled{opacity:.4}
 button.primary.is-off{opacity:.45}
+button:disabled{opacity:.45;cursor:not-allowed}
 #cfNeeds.alert{color:#b45309;font-weight:600}
 :root[data-theme="dark"] #cfNeeds.alert{color:#fbbf24}
 .cam2-picks{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
@@ -338,16 +339,17 @@ details.trainer{padding:0}
     <div id="cfMain">
       <div id="cfScanBox" class="cf-scan">
         <div class="cf-kicker">Scan or paste the card text</div>
-        <textarea id="cfText" rows="4" placeholder="Tap Read Card to use the camera, or paste or type the card text here."></textarea>
+        <textarea id="cfText" rows="4" placeholder="Tap Read Card to use the camera or Select Image for a saved picture, or paste or type the card text here."></textarea>
         <div class="cf-tools">
           <button type="button" id="cfFillBtn" class="primary small" disabled>Fill In</button>
           <button type="button" id="cfReadBtn" class="ghost small">Read Card</button>
+          <button type="button" id="cfPhotoBtn" class="ghost small">Select Image</button>
           <button type="button" id="cfScanBtn" class="ghost small">Scan Code</button>
           <input type="file" id="cfReadFile" accept="image/*" capture="environment" hidden>
           <input type="file" id="cfScanFile" accept="image/*" capture="environment" hidden>
           <input type="file" id="cfSavedFile" accept="image/*" hidden>
         </div>
-        <p class="small muted">Read Card opens the camera with a card outline. The card is read on this device; a smaller copy of the picture is saved with the card (View Card) until you export it. Check every field before saving.</p>
+        <p class="small muted">Read Card opens the camera with a card outline; Select Image reads a picture you already have. The card is read on this device; a smaller copy of the picture is saved with the card (View Card) until you export it. Check every field before saving.</p>
         <p id="cfPicKept" class="small cf-ok" hidden>Card picture ready to save with this card.</p>
       </div>
       <p id="cfBusy" class="small muted" hidden></p>
@@ -423,9 +425,9 @@ details.trainer{padding:0}
     <video id="camVideo" muted playsinline></video>
     <div class="cam2-center"><div id="camOutline" class="cam2-outline"></div></div>
     <div id="camHint" class="cam2-hint"></div>
-    <div id="camFailed" class="cam2-failed" hidden><p>The live camera isn't available here (or permission was turned down).</p><div class="cam2-picks"><button type="button" id="camPicker" class="cam2-pick">Take or Choose a Picture</button><button type="button" id="camSaved2" class="cam2-pick">Use a Saved Photo</button></div></div>
+    <div id="camFailed" class="cam2-failed" hidden><p>The live camera isn't available here (or permission was turned down).</p><button type="button" id="camPicker" class="cam2-pick">Take or Choose a Picture</button></div>
   </div>
-  <div class="cam2-bar"><button type="button" id="camClose" class="cam2-close">Close</button><button type="button" id="camSaved" class="cam2-close">Use a Saved Photo</button><button type="button" id="camCapture" class="cam2-cap" disabled>Capture</button></div>
+  <div class="cam2-bar"><button type="button" id="camClose" class="cam2-close">Close</button><button type="button" id="camCapture" class="cam2-cap" disabled>Capture</button></div>
 </div>
 
 <div id="startTiles" class="start-ov" hidden>
@@ -554,8 +556,8 @@ details.trainer{padding:0}
     <figure class="help-fig"><img data-help-img="tiles" alt="The choice after sign-in: Card Reader or Training App"><figcaption>After sign-in: Card Reader or Training App.</figcaption></figure>
     <figure class="help-fig"><img data-help-img="page" alt="The Card Reader page"><figcaption>The Card Reader page: search, Show, Add Card and Export.</figcaption></figure>
     <div class="table-wrap"><table class="help-table"><thead><tr><th>Item</th><th>How it works</th></tr></thead><tbody>
-      <tr><td>Read Card</td><td>The camera opens with a card-shaped outline. Fill it with the card and hold still: it turns green and takes the picture after one second (or press <em>Capture</em>). To use a picture you already have, press <em>Use a Saved Photo</em> on the camera screen and pick it from your photos. The card is read on your device. Check every field: <em>check this</em> means guessed, <em>read</em> means it came straight from the card. <em>Show All Fields</em> shows the blanks. You can also paste card text and press <em>Fill In</em>, or press <em>Scan Code</em> and take a picture of a QR code or badge.</td></tr>
-      <tr><td>No camera</td><td><em>Take or Choose a Picture</em> or <em>Use a Saved Photo</em> instead; the app finds the card in the picture.</td></tr>
+      <tr><td>Read Card</td><td>The camera opens with a card-shaped outline. Fill it with the card and hold still: it turns green and takes the picture after one second (or press <em>Capture</em>). To use a picture you already have, press <em>Select Image</em> (next to Read Card) and pick it from your photos; the camera does not open. The card is read on your device. Check every field: <em>check this</em> means guessed, <em>read</em> means it came straight from the card. <em>Show All Fields</em> shows the blanks. You can also paste card text and press <em>Fill In</em>, or press <em>Scan Code</em> and take a picture of a QR code or badge.</td></tr>
+      <tr><td>No camera</td><td><em>Take or Choose a Picture</em> on the camera screen, or <em>Select Image</em> on the form; the app finds the card in the picture.</td></tr>
       <tr><td>Card picture</td><td>After Read Card, a smaller copy of the card picture is saved with the card. Open the card and press <em>View Card</em> to see it. The picture is removed when the person who saved the card exports it.</td></tr>
       <tr><td>Agency</td><td>The agency the person works for (the list suggests agencies from Trainings).</td></tr>
       <tr><td>Date met</td><td>Starts on today; change it if needed.</td></tr>
@@ -571,8 +573,8 @@ details.trainer{padding:0}
     <figure class="help-fig"><img data-help-img="camera" alt="Read Card: the camera screen with the card outline"><figcaption>Read Card: the camera screen with the card outline.</figcaption></figure>
     <p>When the card's edges line up and the picture is still, the outline turns thick green and the text reads "Hold still…". After one second the picture is taken by itself (or press Capture).</p>
     <figure class="help-fig"><img data-help-img="lock" alt="The green outline: the card is locked"><figcaption>The green outline: the card is locked and the picture is about to be taken.</figcaption></figure>
-    <p>To read a card from a picture you already have, press <em>Use a Saved Photo</em> at the bottom of the camera screen; your photos open, and the app finds the card in the picture you pick. It is read and saved the same way as a camera picture.</p>
-    <p>If the live camera isn't available (or permission was turned down), the screen offers <em>Take or Choose a Picture</em> and <em>Use a Saved Photo</em> instead.</p>
+    <p>To read a card from a picture you already have, press <em>Select Image</em> on the form (between Read Card and Scan Code); your photos open without the camera, and the app finds the card in the picture you pick. It is read and saved the same way as a camera picture.</p>
+    <p>If the live camera isn't available (or permission was turned down), the camera screen offers <em>Take or Choose a Picture</em> instead.</p>
     <figure class="help-fig"><img data-help-img="picker" alt="No live camera: Take or Choose a Picture"><figcaption>No live camera: Take or Choose a Picture.</figcaption></figure>
     <figure class="help-fig"><img data-help-img="filled" alt="A card read in"><figcaption>A card read in: <em>read</em> and <em>check this</em> beside each field.</figcaption></figure>
     <figure class="help-fig"><img data-help-img="other" alt="Other: Use Once, then the request question"><figcaption>Other…: Use Once, then the request question.</figcaption></figure>
@@ -610,6 +612,6 @@ details.trainer{padding:0}
 </main>
 
 <p id="fatal" class="fatal" hidden></p>
-<script src="app.js?v=2026-11-27a"></script>
+<script src="app.js?v=2026-11-27b"></script>
 </body>
 </html>
