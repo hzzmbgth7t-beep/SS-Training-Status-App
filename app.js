@@ -1379,14 +1379,16 @@ function smallPicture(src) { // kept with the card: long side 900 px, JPEG 0.6 (
   });
 }
 function keepPicture(p) { p.then(function (u) { if (u) { cf.image = u; $('cfPicKept').hidden = false; } }, function () { }); }
-$('cfReadFile').addEventListener('change', function () {
-  var file = this.files && this.files[0]; if (!file) return;
+function readFromInput() {
+  var input = this, file = input.files && input.files[0]; if (!file) return;
   cMsg(''); cfBusy('Reading the card on this device…');
   var pic = smallPicture(file);
   readPictureFile(file).then(function (res) { readDone(res); keepPicture(pic); })
     .catch(function () { cMsg('The card could not be read. Try again, or type it.'); })
-    .then(function () { cfBusy(''); $('cfReadFile').value = ''; });
-});
+    .then(function () { cfBusy(''); input.value = ''; });
+}
+$('cfReadFile').addEventListener('change', readFromInput);
+$('cfSavedFile').addEventListener('change', readFromInput);
 function readCaptured(canvas) {
   cMsg(''); cfBusy('Reading the card on this device…');
   var pic = smallPicture(canvas);
@@ -1492,6 +1494,9 @@ function camWatch() {
 $('camCapture').addEventListener('click', camCapture);
 $('camClose').addEventListener('click', function () { cam.done = true; stopCam(); });
 $('camPicker').addEventListener('click', function () { cam.done = true; stopCam(); $('cfReadFile').click(); });
+function useSavedPhoto() { cam.done = true; stopCam(); $('cfSavedFile').click(); }
+$('camSaved').addEventListener('click', useSavedPhoto);
+$('camSaved2').addEventListener('click', useSavedPhoto);
 $('cfReadBtn').addEventListener('click', function () { cMsg(''); if (hasLiveCamera()) startCam(); else $('cfReadFile').click(); });
 
 // ---- export: only new or changed cards; recorded per person ----
@@ -1552,7 +1557,7 @@ function pickStart(v) {
 // Help pictures for the Card Reader load only when Help is opened (help-cards.js).
 function loadHelpPictures() {
   if (window.TS_HELP_IMG) return fillHelpPictures();
-  loadScript('help-cards.js?v=2026-11-26d').then(fillHelpPictures, function () { /* pictures are optional */ });
+  loadScript('help-cards.js?v=2026-11-26e').then(fillHelpPictures, function () { /* pictures are optional */ });
 }
 function fillHelpPictures() {
   document.querySelectorAll('img[data-help-img]').forEach(function (im) { var u = window.TS_HELP_IMG && window.TS_HELP_IMG[im.dataset.helpImg]; if (u && !im.src) im.src = u; });
