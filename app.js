@@ -1283,7 +1283,7 @@ function applyParsed(p) {
   cfFieldView(); cfButtons();
   return q;
 }
-function cfBusy(t) { $('cfBusy').textContent = t || ''; $('cfBusy').hidden = !t; $('cfReadBtn').disabled = $('cfScanBtn').disabled = !!t; }
+function cfBusy(t) { $('cfBusy').textContent = t || ''; $('cfBusy').hidden = !t; $('cfReadBtn').disabled = $('cfPhotoBtn').disabled = $('cfScanBtn').disabled = !!t; }
 $('cfText').addEventListener('input', cfButtons);
 $('cfFillBtn').addEventListener('click', function () {
   var t = $('cfText').value; if (!t.trim()) return;
@@ -1523,9 +1523,7 @@ function camWatch() {
 $('camCapture').addEventListener('click', camCapture);
 $('camClose').addEventListener('click', function () { cam.done = true; stopCam(); });
 $('camPicker').addEventListener('click', function () { cam.done = true; stopCam(); $('cfReadFile').click(); });
-function useSavedPhoto() { cam.done = true; stopCam(); $('cfSavedFile').click(); }
-$('camSaved').addEventListener('click', useSavedPhoto);
-$('camSaved2').addEventListener('click', useSavedPhoto);
+$('cfPhotoBtn').addEventListener('click', function () { cMsg(''); $('cfSavedFile').click(); });
 $('cfReadBtn').addEventListener('click', function () { cMsg(''); if (hasLiveCamera()) startCam(); else $('cfReadFile').click(); });
 
 // ---- export: only new or changed cards; recorded per person ----
@@ -1586,7 +1584,7 @@ function pickStart(v) {
 // Help pictures for the Card Reader load only when Help is opened (help-cards.js).
 function loadHelpPictures() {
   if (window.TS_HELP_IMG) return fillHelpPictures();
-  loadScript('help-cards.js?v=2026-11-27a').then(fillHelpPictures, function () { /* pictures are optional */ });
+  loadScript('help-cards.js?v=2026-11-27b').then(fillHelpPictures, function () { /* pictures are optional */ });
 }
 function fillHelpPictures() {
   document.querySelectorAll('img[data-help-img]').forEach(function (im) { var u = window.TS_HELP_IMG && window.TS_HELP_IMG[im.dataset.helpImg]; if (u && !im.src) im.src = u; });
