@@ -1175,7 +1175,7 @@ function parseCardText(text, big) {
   var W = function (P) { return P.replace(/,.*$/, '').split(/\s+/).slice(1).some(Y); };
   var H = N.filter(W)[0] || N.filter(function (P) { return big.some(function (Bq) { return Bq.trim() === P; }); })[0] || N[0];
   if (H) {
-    var Pn = H.replace(/,.*$/, '').split(/\s+/).filter(function (x) { return /^[A-Z]/.test(x) && !/^(mr|mrs|ms|dr|rev)\.?$/i.test(x); }).map(capWord);
+    var Pn = H.replace(/,.*$/, '').split(/\s+/).filter(function (x) { return /^[A-Z]/.test(x) && !/^(mr|mrs|ms|dr|rev|capt|cpt|lt|sgt|cpl|det|ofc|dep|maj|col|cmdr|insp)\.?$/i.test(x); }).map(capWord);
     var conf = W(H) ? 'High' : 'Check', ni = -1;
     Pn.forEach(function (x, i) { if (ni < 0 && i > 0 && Y(x)) ni = i; });
     if (Pn.length >= 2) { o('first_name', Pn[0], conf); o('last_name', Pn[ni > 0 ? ni : Pn.length - 1], conf); }
@@ -1190,7 +1190,16 @@ function parseCardText(text, big) {
     var fw = Bw.filter(function (I) { return /^[A-Z][a-z]{1,}$/.test(I) && I[0].toLowerCase() === L[0] && used.indexOf(I) < 0 && I !== lastN && agScore(I) === 0 && tiScore(I) === 0; })[0];
     if (fw) o('first_name', fw, 'Check');
   }
-  if (v) o('title', v, 'Check');
+  if (v) {
+    // A title printed on two lines: join a modifier line above it ("Senior RMS Implementation" + "Specialist")
+    // or a line below it when the title ends mid-phrase ("Director of" + "Public Safety").
+    var TMOD = /\b(senior|sr|junior|jr|lead|principal|associate|assistant|deputy|chief|executive|regional|national|technical|implementation|project|program|account|sales|support|training|operations|records|systems|network|information|customer|field|product|software|business|public|safety|rms|cad|it|gis|911|e911|communications|emergency|services|solutions|client|partner|development|marketing)\b/i;
+    var okPart = function (P) { return P && P !== H && P !== g && P !== k && !/\d|@|www\.|https?:/i.test(P) && P.split(/\s+/).length <= 5 && agScore(P) === 0 && deScore(P) === 0; };
+    var vi = S.indexOf(v), above = vi > 0 ? S[vi - 1] : '', below = vi >= 0 ? S[vi + 1] : '';
+    if (okPart(above) && TMOD.test(above) && tiScore(above) === 0) v = above + ' ' + v;
+    else if (/\b(of|and|for|&)$/i.test(v) && below && below !== H && below !== g && !/\d|@|www\.|https?:/i.test(below) && below.split(/\s+/).length <= 5) { v = v + ' ' + below; if (k === below) { k = ''; } }
+    o('title', v, 'Check');
+  }
   var small = ['of', 'and', 'the', 'for', 'at', 'in', 'on'];
   if (g) o('agency', (function (P) {
     return /[a-z]/.test(P) ? P : P.toLowerCase().split(' ').map(function (Bq, ni2) { return ni2 > 0 && small.indexOf(Bq) >= 0 ? Bq : Bq.replace(/(^|['’-])([a-z])/g, function (x, le2, I) { return le2 + I.toUpperCase(); }); }).join(' ');
@@ -1557,7 +1566,7 @@ function pickStart(v) {
 // Help pictures for the Card Reader load only when Help is opened (help-cards.js).
 function loadHelpPictures() {
   if (window.TS_HELP_IMG) return fillHelpPictures();
-  loadScript('help-cards.js?v=2026-11-26e').then(fillHelpPictures, function () { /* pictures are optional */ });
+  loadScript('help-cards.js?v=2026-11-26f').then(fillHelpPictures, function () { /* pictures are optional */ });
 }
 function fillHelpPictures() {
   document.querySelectorAll('img[data-help-img]').forEach(function (im) { var u = window.TS_HELP_IMG && window.TS_HELP_IMG[im.dataset.helpImg]; if (u && !im.src) im.src = u; });
